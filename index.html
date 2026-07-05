@@ -1,0 +1,266 @@
+<title>GPS'siz Konum — 3D Canlı Uçuş İzleme</title>
+<style>
+  :root{
+    --bg:#0A101C; --panel:#111A2B; --panel2:#0E1626; --line:#1B2A44;
+    --ink:#E9F0FA; --muted:#7E8BA3; --dim:#4A5670;
+    --true:#E9F0FA; --v66:#45D6E8; --v7:#E5A43B; --fizik:#9D7BF0;
+    --alarm:#F25757; --ok:#46C98D; --v71:#46C98D;
+    --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  }
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;overflow:hidden}
+  header{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+  h1{font-size:13px;margin:0;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+  h1 b{color:var(--ink);font-weight:700}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font:600 12px var(--sans);padding:5px 12px;border-radius:3px;border:1px solid var(--line);
+        background:transparent;color:var(--muted);cursor:pointer}
+  .chip:hover{border-color:var(--dim);color:var(--ink)}
+  .chip.on{background:#16283F;color:var(--ink);border-color:#2C4468}
+  .chip:focus-visible,button:focus-visible{outline:2px solid var(--v66);outline-offset:1px}
+  .spacer{flex:1}
+  .ctl{display:flex;gap:6px;align-items:center}
+  .btn{font:700 13px var(--mono);padding:5px 12px;background:#16283F;color:var(--ink);
+       border:1px solid #2C4468;border-radius:3px;cursor:pointer;min-width:44px}
+  .btn:hover{background:#1D3350}
+  .btn.spd{min-width:38px;background:transparent;border-color:var(--line);color:var(--muted)}
+  .btn.spd.on{background:#16283F;color:var(--ink);border-color:#2C4468}
+  main{flex:1;position:relative;min-height:0;cursor:grab}
+  main.tut{cursor:grabbing}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  #ipucu{position:absolute;top:10px;right:14px;color:var(--dim);font:11px var(--sans);pointer-events:none}
+  #hud{display:flex;gap:0;border-top:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+  .cell{padding:10px 18px;border-right:1px solid var(--line);min-width:100px}
+  .cell .lb{font:600 10px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+  .cell .vl{font:700 20px var(--mono);font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 10px;border-radius:3px;font:700 13px var(--mono);letter-spacing:.08em}
+  .pill.lock{background:#0E2B20;color:var(--ok);border:1px solid #1D4A37}
+  .pill.out{background:#331519;color:var(--alarm);border:1px solid #5C2429;animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:.55}}
+  @media (prefers-reduced-motion: reduce){.pill.out{animation:none}}
+  .err .vl{font-size:18px}
+  .err.v71 .vl{color:var(--v71)} .err.v66 .vl{color:var(--v66)} .err.v7 .vl{color:var(--v7)} .err.fizik .vl{color:var(--fizik)}
+  .err .lb i{display:inline-block;width:8px;height:8px;border-radius:1px;margin-right:5px;vertical-align:-1px;font-style:normal}
+  .err.v71 .lb i{background:var(--v71)} .err.v66 .lb i{background:var(--v66)} .err.v7 .lb i{background:var(--v7)} .err.fizik .lb i{background:var(--fizik)}
+  #not{padding:8px 18px;color:var(--dim);font:12px var(--sans);flex:1;min-width:220px;align-self:center}
+</style>
+<header>
+  <h1><b>GPS'SİZ KONUM</b> · 3D CANLI İZLEME</h1>
+  <nav class="chips" id="ucuslar" aria-label="Uçuş seç"></nav>
+  <span class="spacer"></span>
+  <div class="ctl">
+    <button class="btn" id="play" aria-label="Oynat/Duraklat">▶</button>
+    <button class="btn spd" data-s="1">1×</button>
+    <button class="btn spd on" data-s="4">4×</button>
+    <button class="btn spd" data-s="10">10×</button>
+    <button class="btn spd" id="tekrar" title="Baştan">⟲</button>
+  </div>
+</header>
+<main id="sahne"><canvas id="cv"></canvas><div id="ipucu">sürükle: döndür · tekerlek: yakınlaş</div></main>
+<div id="hud">
+  <div class="cell"><div class="lb">Uçuş süresi</div><div class="vl" id="tval">T+0.0s</div></div>
+  <div class="cell"><div class="lb">GPS</div><div class="vl"><span class="pill lock" id="gps">LOCK</span></div></div>
+  <div class="cell"><div class="lb">İrtifa</div><div class="vl" id="alt">—</div></div>
+  <div class="cell err v71"><div class="lb"><i></i>PRODUCTION (füzyon)</div><div class="vl" id="e71">—</div></div>
+  <div class="cell err v66"><div class="lb"><i></i>AI Ensemble</div><div class="vl" id="e66">—</div></div>
+  <div class="cell err v7"><div class="lb"><i></i>v7 Tek Model</div><div class="vl" id="e7">—</div></div>
+  <div class="cell err fizik"><div class="lb"><i></i>Fizik Baseline</div><div class="vl" id="ef">—</div></div>
+  <div id="not">3B görünüm: beyaz iz = gerçek rota (GPS), zemin ızgarası = min irtifa düzlemi,
+  dikey çizgi = yerden yükseklik. Her 60 saniyede bir 30 saniyelik GPS kesintisi; üç kestirimci
+  sensör-only tahmin üretir, hatalar donuk iz olarak kalır.</div>
+</div>
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const CSS = getComputedStyle(document.documentElement);
+const C = n => CSS.getPropertyValue(n).trim();
+const MODELS = [["v71",C('--v71')],["v66",C('--v66')],["v7",C('--v7')],["fizik",C('--fizik')]];
+
+let VERI = null;
+let ucusKey = null;
+let t = 0, playing = true, speed = 4, acc = 0, last = performance.now();
+let W=0,H=0,DPR=1;
+let az = -0.7, el = 0.55, zoom = 1;      // kamera
+let merkez=[0,0,0], yaricap=1, ALT_K=2.2; // irtifa abartma (görünürlük)
+
+function boyutla(){
+  DPR = window.devicePixelRatio||1;
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+function sahneHazirla(){
+  const u = VERI[ucusKey];
+  let mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9];
+  const gez = p => { for(let i=0;i<3;i++){ if(p[i]<mn[i])mn[i]=p[i]; if(p[i]>mx[i])mx[i]=p[i]; } };
+  u.true.forEach(gez);
+  u.outages.forEach(o => MODELS.forEach(([k])=>o[k].forEach(gez)));
+  merkez = [(mn[0]+mx[0])/2, (mn[1]+mx[1])/2, (mn[2]+mx[2])/2];
+  taban = mn[2];
+  yaricap = Math.max(mx[0]-mn[0], mx[1]-mn[1], (mx[2]-mn[2])*ALT_K, 1)/2;
+  sinir = {mn, mx};
+}
+let taban=0, sinir=null;
+
+function proj(p){
+  // dünya: n(kuzey), e(doğu), alt → kamera-döndürülmüş ortografik
+  const x0 = p[1]-merkez[1], y0 = p[0]-merkez[0], z0 = (p[2]-merkez[2])*ALT_K;
+  const ca=Math.cos(az), sa=Math.sin(az);
+  const x1 = x0*ca - y0*sa, y1 = x0*sa + y0*ca;
+  const ce=Math.cos(el), se=Math.sin(el);
+  const y2 = y1*ce - z0*se;            // derinlik ekseni değil — ekran-y
+  const sc = Math.min(W,H)/(2.6*yaricap)*zoom;
+  return [W/2 + x1*sc, H/2 + y2*sc];
+}
+
+function zemin(){
+  if(!sinir) return;
+  const {mn,mx} = sinir;
+  let adim = 100; const gen = Math.max(mx[1]-mn[1], mx[0]-mn[0]);
+  while(gen/adim > 14) adim *= (adim===100?2.5:2);
+  ctx.strokeStyle = C('--line'); ctx.lineWidth = 1;
+  const e0=Math.floor(mn[1]/adim)*adim, e1=Math.ceil(mx[1]/adim)*adim;
+  const n0=Math.floor(mn[0]/adim)*adim, n1=Math.ceil(mx[0]/adim)*adim;
+  ctx.beginPath();
+  for(let e=e0;e<=e1;e+=adim){
+    let p=proj([n0,e,taban]); ctx.moveTo(p[0],p[1]);
+    p=proj([n1,e,taban]); ctx.lineTo(p[0],p[1]);
+  }
+  for(let n=n0;n<=n1;n+=adim){
+    let p=proj([n,e0,taban]); ctx.moveTo(p[0],p[1]);
+    p=proj([n,e1,taban]); ctx.lineTo(p[0],p[1]);
+  }
+  ctx.stroke();
+  // kuzey oku + ölçek
+  ctx.fillStyle = C('--dim'); ctx.font='11px '+CSS.getPropertyValue('--mono');
+  const pa=proj([n1,e0,taban]), pb=proj([n1-adim,e0,taban]);
+  ctx.fillText('K', pa[0]+6, pa[1]);
+  ctx.fillText(adim+' m ızgara', 16, H-14);
+}
+
+function iz3(path, n, renk, kalin, alfa){
+  if(n<2) return;
+  ctx.globalAlpha=alfa; ctx.strokeStyle=renk; ctx.lineWidth=kalin; ctx.lineJoin='round';
+  ctx.beginPath();
+  let p=proj(path[0]); ctx.moveTo(p[0],p[1]);
+  for(let i=1;i<n;i++){ p=proj(path[i]); ctx.lineTo(p[0],p[1]); }
+  ctx.stroke(); ctx.globalAlpha=1;
+}
+function golge(path, n, alfa){ // zemine iz düşümü
+  ctx.globalAlpha=alfa; ctx.strokeStyle='#22314F'; ctx.lineWidth=1;
+  ctx.beginPath();
+  let p=proj([path[0][0],path[0][1],taban]); ctx.moveTo(p[0],p[1]);
+  for(let i=1;i<n;i++){ p=proj([path[i][0],path[i][1],taban]); ctx.lineTo(p[0],p[1]); }
+  ctx.stroke(); ctx.globalAlpha=1;
+}
+function nokta3(p, renk, r, dikey){
+  const q=proj(p);
+  if(dikey){
+    const qz=proj([p[0],p[1],taban]);
+    ctx.strokeStyle=renk; ctx.globalAlpha=.35; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1;
+  }
+  ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],r,0,7); ctx.fill();
+}
+
+function ciz(){
+  const u = VERI[ucusKey];
+  ctx.fillStyle=C('--bg'); ctx.fillRect(0,0,W,H);
+  zemin();
+  const T=u.true.length, ti=Math.min(Math.floor(t), T-1);
+  for(const o of u.outages){
+    if(o.s + o.v66.length <= ti)
+      MODELS.forEach(([k,renk]) => iz3(o[k], o[k].length, renk, 1.2, .30));
+  }
+  golge(u.true, ti+1, .5);
+  iz3(u.true, ti+1, C('--true'), 1.6, .85);
+  let aktif=null;
+  for(const o of u.outages){
+    const rel = ti - o.s;
+    if(rel>=0 && rel<o.v66.length){ aktif={o,rel}; break; }
+  }
+  const hud={v71:'—',v66:'—',v7:'—',fizik:'—'};
+  const gt = u.true[ti];
+  if(aktif){
+    const {o,rel}=aktif;
+    MODELS.forEach(([k,renk])=>{
+      iz3(o[k], rel+1, renk, 2.2, .95);
+      const pm=o[k][Math.min(rel,o[k].length-1)];
+      nokta3(pm, renk, 4, true);
+      hud[k]=Math.hypot(pm[0]-gt[0],pm[1]-gt[1],(pm[2]-gt[2])).toFixed(1)+' m';
+    });
+    const q=proj(gt); ctx.strokeStyle=C('--true'); ctx.lineWidth=1.5;
+    ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(q[0],q[1],6,0,7); ctx.stroke(); ctx.setLineDash([]);
+    document.getElementById('gps').textContent='KESİNTİ';
+    document.getElementById('gps').className='pill out';
+  } else {
+    nokta3(gt, C('--true'), 5, true);
+    document.getElementById('gps').textContent='LOCK';
+    document.getElementById('gps').className='pill lock';
+  }
+  document.getElementById('tval').textContent='T+'+(ti*0.5).toFixed(1)+'s';
+  document.getElementById('alt').textContent=gt[2].toFixed(0)+' m';
+  document.getElementById('e71').textContent=hud.v71;
+  document.getElementById('e66').textContent=hud.v66;
+  document.getElementById('e7').textContent=hud.v7;
+  document.getElementById('ef').textContent=hud.fizik;
+}
+
+function dongu(now){
+  if(playing){
+    acc += (now-last)/1000*speed*2;
+    if(acc>=1){ t += Math.floor(acc); acc -= Math.floor(acc); }
+    const T=VERI[ucusKey].true.length;
+    if(t>=T){ t=T-1; playing=false; belirtele(); }
+    if(!surukleme) az += 0.0006*speed;   // hafif oto-yörünge
+  }
+  last=now; ciz(); requestAnimationFrame(dongu);
+}
+function belirtele(){ document.getElementById('play').textContent = playing?'❚❚':'▶'; }
+
+document.getElementById('play').onclick=()=>{ playing=!playing; if(playing&&t>=VERI[ucusKey].true.length-1)t=0; belirtele(); };
+document.getElementById('tekrar').onclick=()=>{ t=0; playing=true; belirtele(); };
+document.querySelectorAll('.btn.spd[data-s]').forEach(b=>b.onclick=()=>{
+  speed=+b.dataset.s;
+  document.querySelectorAll('.btn.spd[data-s]').forEach(x=>x.classList.toggle('on',x===b));
+});
+const nav=document.getElementById('ucuslar');
+// fare: yörünge + zoom
+let surukleme=false, sonXY=null;
+const sahne=document.getElementById('sahne');
+sahne.addEventListener('pointerdown',e=>{surukleme=true;sonXY=[e.clientX,e.clientY];sahne.classList.add('tut');sahne.setPointerCapture(e.pointerId);});
+sahne.addEventListener('pointermove',e=>{
+  if(!surukleme)return;
+  az += (e.clientX-sonXY[0])*0.006;
+  el = Math.max(0.05, Math.min(1.5, el + (e.clientY-sonXY[1])*0.004));
+  sonXY=[e.clientX,e.clientY];
+});
+sahne.addEventListener('pointerup',e=>{surukleme=false;sahne.classList.remove('tut');});
+sahne.addEventListener('wheel',e=>{e.preventDefault(); zoom=Math.max(.4,Math.min(4,zoom*(e.deltaY<0?1.1:0.9)));},{passive:false});
+
+window.addEventListener('resize',()=>{boyutla();});
+
+function init(){
+  // v71 = 0.6*ensemble + 0.4*fizik (production blend) — izlerden turetilir
+  for (const u of Object.values(VERI))
+    for (const o of u.outages)
+      o.v71 = o.prod ? o.prod : o.v66.map((p,i)=>[0.6*p[0]+0.4*o.fizik[i][0], 0.6*p[1]+0.4*o.fizik[i][1], p[2]]);
+  ucusKey = Object.keys(VERI)[0];
+  Object.entries(VERI).forEach(([k,u],i)=>{
+    const b=document.createElement('button');
+    b.className='chip'+(i===0?' on':''); b.textContent=u.ad;
+    b.onclick=()=>{ ucusKey=k; t=0; playing=true; belirtele(); sahneHazirla();
+      nav.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b)); };
+    nav.appendChild(b);
+  });
+  boyutla(); sahneHazirla(); belirtele(); requestAnimationFrame(dongu);
+}
+
+fetch('./data/ucuslar.json')
+  .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(d=>{ VERI=d; init(); })
+  .catch(e=>{
+    console.error('Veri yüklenemedi', e);
+    document.getElementById('not').textContent = 'HATA: veri yüklenemedi (' + e.message + '). ./serve.sh ile çalıştırdığınızdan emin olun.';
+  });
+</script>
