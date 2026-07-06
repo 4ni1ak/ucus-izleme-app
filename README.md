@@ -28,6 +28,7 @@ Sonra tarayıcıda **http://localhost:8090** adresini açın.
 - **Mor (fizik)** — saf fizik/dead-reckoning baseline tahmini (`fizik`).
 - **Zemin ızgarası** — minimum irtifa düzlemi, ölçek etiketiyle birlikte.
 - **Dikey çizgi** — o anki noktadan zemine iz düşümü (yerden yükseklik).
+- Kesinti sonunda yeşil production izi GPS dönüşüyle geriye kapanır (retro-düzeltme, iz doğruluğu ~6m).
 
 Üstteki HUD şeridi anlık uçuş süresini, GPS durumunu (LOCK / KESİNTİ), irtifayı
 ve her modelin o anki konum hatasını (metre) gösterir. Her ~60 saniyede bir

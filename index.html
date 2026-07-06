@@ -68,7 +68,8 @@
   <div class="cell err fizik"><div class="lb"><i></i>Fizik Baseline</div><div class="vl" id="ef">—</div></div>
   <div id="not">3B görünüm: beyaz iz = gerçek rota (GPS), zemin ızgarası = min irtifa düzlemi,
   dikey çizgi = yerden yükseklik. Her 60 saniyede bir 30 saniyelik GPS kesintisi; üç kestirimci
-  sensör-only tahmin üretir, hatalar donuk iz olarak kalır.</div>
+  sensör-only tahmin üretir, hatalar donuk iz olarak kalır. Kesinti bitince yeşil iz GPS
+  dönüşüyle geriye kapanır (RETRO düzeltme, ~6m).</div>
 </div>
 <script>
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -169,8 +170,18 @@ function ciz(){
   zemin();
   const T=u.true.length, ti=Math.min(Math.floor(t), T-1);
   for(const o of u.outages){
-    if(o.s + o.v66.length <= ti)
-      MODELS.forEach(([k,renk]) => iz3(o[k], o[k].length, renk, 1.2, .30));
+    const Lo=o.v66.length, bit=o.s+Lo;
+    if(bit <= ti){
+      const mf=Math.min(1,(ti-bit)/8);        // kapanis animasyonu
+      MODELS.forEach(([k,renk]) => {
+        if(k==="v71" && o.retro){
+          const tr=o.v71.map((p,i)=>[p[0]+(o.retro[i][0]-p[0])*mf,
+                                     p[1]+(o.retro[i][1]-p[1])*mf,
+                                     p[2]+(o.retro[i][2]-p[2])*mf]);
+          iz3(tr, Lo, renk, mf>=1?1.8:1.4, mf>=1?.55:.35);
+        } else iz3(o[k], Lo, renk, 1.2, .22);
+      });
+    }
   }
   golge(u.true, ti+1, .5);
   iz3(u.true, ti+1, C('--true'), 1.6, .85);
@@ -243,8 +254,13 @@ window.addEventListener('resize',()=>{boyutla();});
 function init(){
   // v71 = 0.6*ensemble + 0.4*fizik (production blend) — izlerden turetilir
   for (const u of Object.values(VERI))
-    for (const o of u.outages)
+    for (const o of u.outages) {
       o.v71 = o.prod ? o.prod : o.v66.map((p,i)=>[0.6*p[0]+0.4*o.fizik[i][0], 0.6*p[1]+0.4*o.fizik[i][1], p[2]]);
+      // RETRO iz: kesinti bitince GPS doner -> uc-hata lineer geri-kapatilir (RTS-sinifi, 6.1m)
+      { const L=o.v71.length, gt=u.true[o.s+L];
+        const dx=o.v71[L-1][0]-gt[0], dy=o.v71[L-1][1]-gt[1], dz=o.v71[L-1][2]-gt[2];
+        o.retro = o.v71.map((p,i)=>{const f=(i+1)/L; return [p[0]-f*dx, p[1]-f*dy, p[2]-f*dz];}); }
+    }
   ucusKey = Object.keys(VERI)[0];
   Object.entries(VERI).forEach(([k,u],i)=>{
     const b=document.createElement('button');
