@@ -80,6 +80,7 @@ let pos={x:0,y:0};                  // gerçek konum
 let ias=16;                         // hava hızı m/s
 let hdg=0;                          // başlık rad (0=kuzey/+y)
 let wind={x:1.5,y:-1.0};            // gerçek rüzgar (gizli)
+let windHedef={x:1.5,y:-1.0};       // rüzgar hedefi (yumuşak geçiş)
 let gust={x:0,y:0};                 // gust dalgalanması
 // tahmin
 let gpsAcik=true;
@@ -111,7 +112,7 @@ function gpsKes(){
   }
 }
 document.getElementById('kes').onclick=gpsKes;
-document.getElementById('ruz').onclick=()=>{ wind={x:(Math.random()*8-4), y:(Math.random()*8-4)}; };
+document.getElementById('ruz').onclick=()=>{ windHedef={x:(Math.random()*6-3), y:(Math.random()*6-3)}; };  // makul ±3 m/s, yumuşak geçiş
 document.getElementById('mrk').onclick=(e)=>{ ortala=!ortala; e.target.classList.toggle('on',ortala); };
 document.getElementById('sifir').onclick=()=>{ pos={x:0,y:0}; iz=[]; izT=[]; if(!gpsAcik)gpsKes(); };
 function hizAyar(h,el){ simHiz=h; ['h05','h1','h2','h4'].forEach(id=>document.getElementById(id).style.background=''); if(el)el.style.background='#1D3350'; }
@@ -128,6 +129,8 @@ function adim(){
   if(tus['ArrowDown']) ias=Math.max(6,ias-0.3);
   if(tus['ArrowLeft']) hdg-=0.035;
   if(tus['ArrowRight']) hdg+=0.035;
+  // rüzgar hedefe YUMUŞAK geçer (gerçek rüzgar ani değişmez; tahmin takip edebilir)
+  wind.x+=(windHedef.x-wind.x)*0.01; wind.y+=(windHedef.y-wind.y)*0.01;
   // gust rastgele yürüyüş (hafif türbülans — düz uçuşta çok az sapma)
   gust.x+=(Math.random()-0.5)*0.15; gust.y+=(Math.random()-0.5)*0.15;
   gust.x*=0.92; gust.y*=0.92;
