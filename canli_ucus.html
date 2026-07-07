@@ -114,11 +114,13 @@ function adim(){
   if(!tus['arrowup']&&!tus['arrowdown']) pitch*=0.94;      // pitch merkeze döner
   if(tus['arrowleft']) hdg-=0.035;
   if(tus['arrowright']) hdg+=0.035;
-  // gaz → hedef hava hızı (6..30)
-  const iasHedef=6+gaz*24; ias+=(iasHedef-ias)*0.05;
+  // gaz → hedef hava hızı (6..30), yumuşak
+  const iasHedef=6+gaz*24; ias+=(iasHedef-ias)*0.06;
   // rüzgar yumuşak
   wind.x+=(windHedef.x-wind.x)*0.01; wind.y+=(windHedef.y-wind.y)*0.01;
-  gust.x+=(Math.random()-0.5)*0.15;gust.y+=(Math.random()-0.5)*0.15;gust.x*=0.92;gust.y*=0.92;
+  // gust: hafif türbülans, sınırlı (30s kesintide ~gerçekçi ~20m sapma)
+  gust.x+=(Math.random()-0.5)*0.08;gust.y+=(Math.random()-0.5)*0.08;gust.x*=0.9;gust.y*=0.9;
+  gust.x=Math.max(-1.2,Math.min(1.2,gust.x));gust.y=Math.max(-1.2,Math.min(1.2,gust.y));
   const wx=wind.x+gust.x, wy=wind.y+gust.y;
   // yatay hava hızı = ias*cos(pitch), dikey = ias*sin(pitch)
   const yat=ias*Math.cos(pitch), vz=ias*Math.sin(pitch);
@@ -128,7 +130,7 @@ function adim(){
   iz.push({x:pos.x,y:pos.y,z:pos.z}); if(iz.length>3000)iz.shift();
 
   if(gpsAcik){
-    ruzgarGecmis.push({x:gx-ax,y:gy-ay}); if(ruzgarGecmis.length>28)ruzgarGecmis.shift();
+    ruzgarGecmis.push({x:gx-ax,y:gy-ay}); if(ruzgarGecmis.length>40)ruzgarGecmis.shift();  // 20s pencere = kararlı rüzgar tahmini
     ogrWind.x=ruzgarGecmis.reduce((s,r)=>s+r.x,0)/ruzgarGecmis.length;
     ogrWind.y=ruzgarGecmis.reduce((s,r)=>s+r.y,0)/ruzgarGecmis.length;
   } else {
