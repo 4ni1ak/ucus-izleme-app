@@ -140,11 +140,22 @@ function zemin(){
     p=proj([n,e1,taban]); ctx.lineTo(p[0],p[1]);
   }
   ctx.stroke();
-  // kuzey oku + ölçek
+  // 3-EKSEN TRİADI (Kuzey / Doğu / Yükseklik) — köşede orijinden
+  const O=[n0,e0,taban], oq=proj(O);
+  const eks=[[[n0+adim,e0,taban],'K','#5FA8FF'],   // Kuzey (X)
+             [[n0,e0+adim,taban],'D','#FF9F45'],   // Doğu (Y)
+             [[n0,e0,taban+adim*0.6],'Yük','#46C98D']]; // Yükseklik (Z)
+  ctx.font='bold 12px '+CSS.getPropertyValue('--mono'); ctx.lineWidth=2;
+  eks.forEach(([p,ad,renk])=>{
+    const q=proj(p);
+    ctx.strokeStyle=renk; ctx.beginPath(); ctx.moveTo(oq[0],oq[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+    // ok ucu
+    ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],3,0,7); ctx.fill();
+    ctx.fillText(ad, q[0]+5, q[1]-2);
+  });
+  // ölçek + düzlem etiketi
   ctx.fillStyle = C('--dim'); ctx.font='11px '+CSS.getPropertyValue('--mono');
-  const pa=proj([n1,e0,taban]), pb=proj([n1-adim,e0,taban]);
-  ctx.fillText('K', pa[0]+6, pa[1]);
-  ctx.fillText(adim+' m ızgara', 16, H-14);
+  ctx.fillText(adim+' m ızgara · zemin = K-D düzlemi (Yük=0)', 16, H-14);
 }
 
 function iz3(path, n, renk, kalin, alfa){
