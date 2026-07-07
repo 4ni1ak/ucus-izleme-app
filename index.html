@@ -280,9 +280,11 @@ function ciz(){
   const gt = u.true[ti];
   if(aktif){
     const {o,rel}=aktif;
+    // HİZALAMA: model[i] = kesinti-başı+1+i konumu → gerçek ti ile eşleşen indeks = rel-1
+    const mi = Math.max(0, Math.min(rel-1, o.v66.length-1));
     MODELS.forEach(([k,renk])=>{
-      iz3(o[k], rel+1, renk, 2.2, .95);
-      const pm=o[k][Math.min(rel,o[k].length-1)];
+      iz3(o[k], mi+1, renk, 2.2, .95);
+      const pm=o[k][mi];
       nokta3(pm, renk, 4, true);
       hud[k]=Math.hypot(pm[0]-gt[0],pm[1]-gt[1],(pm[2]-gt[2])).toFixed(1)+' m';
     });
