@@ -70,6 +70,7 @@
 <div id="hud">
   <div class="cell"><div class="lb">Uçuş süresi</div><div class="vl" id="tval">T+0.0s</div></div>
   <div class="cell"><div class="lb">GPS</div><div class="vl"><span class="pill lock" id="gps">LOCK</span></div></div>
+  <div class="cell"><div class="lb">Bütünlük (RAIM)</div><div class="vl"><span class="pill lock" id="raim">GÜVENİLİR</span></div></div>
   <div class="cell"><div class="lb">İrtifa</div><div class="vl" id="alt">—</div></div>
   <div class="cell err v71"><div class="lb"><i></i>◆ PRODUCTION (füzyon) — ÜRÜN</div><div class="vl" id="e71">—</div></div>
   <div class="cell err v66"><div class="lb"><i></i>AI Ensemble · bileşen</div><div class="vl" id="e66">—</div></div>
@@ -300,12 +301,19 @@ function ciz(){
     ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(q[0],q[1],6,0,7); ctx.stroke(); ctx.setLineDash([]);
     document.getElementById('gps').textContent='KESİNTİ';
     document.getElementById('gps').className='pill out';
+    // BÜTÜNLÜK-BAYRAĞI: sistem bu kesintiyi güvenilir/güvenilmez ilan etti mi
+    const raim=document.getElementById('raim');
+    if(o.bayrak){ raim.textContent='GÜVENİLMEZ'; raim.className='pill out';
+      document.getElementById('ipucu').textContent='⚠ BÜTÜNLÜK: sistem bu pencereyi güvenilmez işaretledi (öz-test '+o.guven+'m > 18m) — hata muhtemelen >30m'; }
+    else { raim.textContent='GÜVENİLİR'; raim.className='pill lock'; }
     // gerçek konumda İHA
     ihaCiz(gt, ti>0?u.true[ti-1]:null, C('--true'));
   } else {
     ihaCiz(gt, ti>0?u.true[ti-1]:null, C('--true'));
     document.getElementById('gps').textContent='LOCK';
     document.getElementById('gps').className='pill lock';
+    document.getElementById('raim').textContent='GÜVENİLİR';
+    document.getElementById('raim').className='pill lock';
   }
   document.getElementById('tval').textContent='T+'+(ti*0.5).toFixed(1)+'s';
   document.getElementById('alt').textContent=gt[2].toFixed(0)+' m';
