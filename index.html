@@ -191,9 +191,17 @@ function zemin(){
     ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],3,0,7); ctx.fill();
     ctx.fillText(ad, q[0]+5, q[1]-2);
   });
-  // ölçek + düzlem etiketi
-  ctx.fillStyle = C('--dim'); ctx.font='11px '+CSS.getPropertyValue('--mono');
+  // ölçek + 3-EKSEN AÇIKLIĞI (metre)
+  const spN=(mx[0]-mn[0]), spD=(mx[1]-mn[1]), spY=(mx[2]-mn[2]);
+  ctx.font='11px '+CSS.getPropertyValue('--mono');
+  ctx.fillStyle = C('--dim');
   ctx.fillText(adim+' m ızgara · zemin = K-D düzlemi (Yük=0)', 16, H-14);
+  // sağ-alt kutucuk: uçuş kapsamı 3 eksende
+  const sat=[['K (kuzey)',spN,'#5FA8FF'],['D (doğu)',spD,'#FF9F45'],['Yük',spY,'#46C98D']];
+  ctx.textAlign='right'; ctx.font='bold 12px '+CSS.getPropertyValue('--mono');
+  sat.forEach(([ad,v,renk],i)=>{ ctx.fillStyle=renk;
+    ctx.fillText(ad+': '+v.toFixed(0)+' m', W-14, H-14-(2-i)*17); });
+  ctx.textAlign='left';
 }
 
 function iz3(path, n, renk, kalin, alfa){
@@ -327,8 +335,8 @@ document.getElementById('takip').onclick=(e)=>{
   fpv=!fpv; e.target.classList.toggle('on',fpv);
   zoom=1;                                  // FPV kendi odak uzaklığını kullanır
   document.getElementById('ipucu').textContent = fpv
-    ? '🎥 İHA gözünden uçuş · tekerlek: görüş açısı · Sabit ile çık'
-    : 'sürükle: döndür · tekerlek: yakınlaş · 🔒 Sabit: oto-dönüşü kilitle';
+    ? '🎥 İHA gözünden uçuş · tekerlek: görüş açısı · İHA Kamerası ile çık'
+    : 'sürükle: döndür · tekerlek: sınırsız yakınlaş/uzaklaş · 🔒 Sabit';
 };
 document.querySelectorAll('.btn.spd[data-s]').forEach(b=>b.onclick=()=>{
   speed=+b.dataset.s;
@@ -346,7 +354,7 @@ sahne.addEventListener('pointermove',e=>{
   sonXY=[e.clientX,e.clientY];
 });
 sahne.addEventListener('pointerup',e=>{surukleme=false;sahne.classList.remove('tut');});
-sahne.addEventListener('wheel',e=>{e.preventDefault(); zoom=Math.max(.4,Math.min(4,zoom*(e.deltaY<0?1.1:0.9)));},{passive:false});
+sahne.addEventListener('wheel',e=>{e.preventDefault(); zoom=Math.max(.02,Math.min(200,zoom*(e.deltaY<0?1.12:0.893)));},{passive:false});
 
 window.addEventListener('resize',()=>{boyutla();});
 
