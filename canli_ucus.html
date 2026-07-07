@@ -44,6 +44,7 @@
   <button class="btn" id="h05" title="Yavaş">0.5×</button>
   <button class="btn" id="h1" title="Normal">1×</button>
   <button class="btn" id="h2" title="Hızlı">2×</button>
+  <button class="btn" id="h4" title="Çok hızlı">4×</button>
   <button class="btn kes" id="kes" title="Boşluk tuşu">⛔ GPS KES (boşluk)</button>
   <button class="btn" id="ruz" title="Rüzgarı değiştir">🌬 Rüzgar</button>
   <button class="btn" id="mrk" title="İHA'yı ortala">🎯 Ortala</button>
@@ -84,7 +85,7 @@ let gust={x:0,y:0};                 // gust dalgalanması
 let gpsAcik=true;
 let ogrWind={x:0,y:0};              // GPS'ten öğrenilen rüzgar (son ~10s gerçek ortalaması)
 let ruzgarGecmis=[];               // son N rüzgar örneği (kayan pencere fit)
-let simHiz=0.5;                    // sim hız çarpanı (0.5× = rahat)
+let simHiz=1;                     // sim hız çarpanı
 let tahmin={x:0,y:0};              // kesinti sırasında tahmini konum
 let kesBasla=null, kesSure=0, hata=0;
 // kamera (serbest pan+zoom, İHA'ya kilitli DEĞİL)
@@ -113,10 +114,12 @@ document.getElementById('kes').onclick=gpsKes;
 document.getElementById('ruz').onclick=()=>{ wind={x:(Math.random()*8-4), y:(Math.random()*8-4)}; };
 document.getElementById('mrk').onclick=(e)=>{ ortala=!ortala; e.target.classList.toggle('on',ortala); };
 document.getElementById('sifir').onclick=()=>{ pos={x:0,y:0}; iz=[]; izT=[]; if(!gpsAcik)gpsKes(); };
-function hizAyar(h){ simHiz=h; ['h05','h1','h2'].forEach(id=>document.getElementById(id).style.background=''); }
-document.getElementById('h05').onclick=e=>{hizAyar(0.5);e.target.style.background='#1D3350';};
-document.getElementById('h1').onclick=e=>{hizAyar(1);e.target.style.background='#1D3350';};
-document.getElementById('h2').onclick=e=>{hizAyar(2);e.target.style.background='#1D3350';};
+function hizAyar(h,el){ simHiz=h; ['h05','h1','h2','h4'].forEach(id=>document.getElementById(id).style.background=''); if(el)el.style.background='#1D3350'; }
+document.getElementById('h05').onclick=e=>hizAyar(0.5,e.target);
+document.getElementById('h1').onclick=e=>hizAyar(1,e.target);
+document.getElementById('h2').onclick=e=>hizAyar(2,e.target);
+document.getElementById('h4').onclick=e=>hizAyar(4,e.target);
+hizAyar(1,document.getElementById('h1'));   // varsayılan 1× vurgulu
 
 // fizik adımı
 function adim(){
