@@ -3,31 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Canlı Uçuş Testi — GPS'siz Konum Kestirimi</title>
+<title>Canlı Uçuş Testi 3B — GPS'siz Konum Kestirimi</title>
 <style>
   :root{
     --bg:#0A101C; --panel:#0E1626; --line:#1B2A44; --ink:#E9F0FA; --muted:#7E8BA3;
-    --dim:#4A5670; --true:#E9F0FA; --tahmin:#46C98D; --alarm:#F25757; --ruzgar:#5FA8FF;
+    --dim:#4A5670; --true:#E9F0FA; --tahmin:#46C98D; --alarm:#F25757; --ruzgar:#5FA8FF; --gaz:#E5A43B;
     --mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
     --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   }
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;overflow:hidden}
-  header{display:flex;align-items:center;gap:14px;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  header{display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
   h1{font-size:13px;margin:0;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--muted)}
   h1 b{color:var(--ink)}
   .sp{flex:1}
-  .btn{font:700 12px var(--mono);padding:6px 13px;background:#16283F;color:var(--ink);border:1px solid #2C4468;border-radius:3px;cursor:pointer}
+  .btn{font:700 12px var(--mono);padding:6px 12px;background:#16283F;color:var(--ink);border:1px solid #2C4468;border-radius:3px;cursor:pointer}
   .btn:hover{background:#1D3350}
   .btn.kes{background:#331519;border-color:#5C2429;color:#FF8A8A}
   .btn.kes.on{background:#F25757;color:#fff}
   main{flex:1;position:relative;min-height:0;cursor:grab}
   main.tut{cursor:grabbing}
   canvas{position:absolute;inset:0;width:100%;height:100%}
-  #ipucu{position:absolute;top:10px;left:14px;color:var(--dim);font:11px var(--sans);pointer-events:none;line-height:1.6}
+  #ipucu{position:absolute;top:10px;left:14px;color:var(--muted);font:11px var(--sans);pointer-events:none;line-height:1.7;background:rgba(10,16,28,.55);padding:8px 12px;border-radius:5px;border:1px solid var(--line)}
+  kbd{background:#1D3350;border:1px solid #2C4468;border-radius:3px;padding:1px 6px;font:700 11px var(--mono)}
   #hud{display:flex;gap:0;border-top:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
-  .cell{padding:9px 16px;border-right:1px solid var(--line);min-width:88px}
-  .cell .lb{font:600 10px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+  .cell{padding:9px 15px;border-right:1px solid var(--line);min-width:82px}
+  .cell .lb{font:600 10px var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
   .cell .vl{font:700 18px var(--mono);font-variant-numeric:tabular-nums}
   .pill{display:inline-block;padding:2px 9px;border-radius:3px;font:700 12px var(--mono)}
   .pill.lock{background:#0E2B20;color:var(--tahmin);border:1px solid #1D4A37}
@@ -39,33 +40,33 @@
 </head>
 <body>
 <header>
-  <h1><b>CANLI UÇUŞ</b> · GPS'siz Konum Kestirimi</h1>
+  <h1><b>CANLI UÇUŞ 3B</b> · GPS'siz Konum Kestirimi</h1>
   <span class="sp"></span>
-  <button class="btn" id="h05" title="Yavaş">0.5×</button>
-  <button class="btn" id="h1" title="Normal">1×</button>
-  <button class="btn" id="h2" title="Hızlı">2×</button>
-  <button class="btn" id="h4" title="Çok hızlı">4×</button>
-  <button class="btn kes" id="kes" title="Boşluk tuşu">⛔ GPS KES (boşluk)</button>
-  <button class="btn" id="ruz" title="Rüzgarı değiştir">🌬 Rüzgar</button>
-  <button class="btn" id="mrk" title="İHA'yı ortala">🎯 Ortala</button>
+  <button class="btn" id="h1">1×</button><button class="btn" id="h2">2×</button><button class="btn" id="h4">4×</button>
+  <button class="btn kes" id="kes" title="Boşluk">⛔ GPS KES</button>
+  <button class="btn" id="ruz">🌬 Rüzgar</button>
   <button class="btn" id="sifir">⟲ Sıfırla</button>
-  <a href="./index.html" class="btn" style="text-decoration:none">◀ Kayıtlı izleme</a>
+  <a href="./index.html" class="btn" style="text-decoration:none">◀ Kayıtlı</a>
 </header>
 <main id="sahne">
   <canvas id="cv"></canvas>
   <div id="ipucu">
-    ↑ gaz &nbsp; ↓ yavaşla &nbsp; ← → dümen (dön)<br>
-    BOŞLUK: GPS kes/aç &nbsp;·&nbsp; sürükle: kaydır &nbsp;·&nbsp; tekerlek: yakınlaş/uzaklaş<br>
-    GPS varken model rüzgarı öğrenir; kesince yeşil = <b>canlı tahmin</b>, hata büyür.
+    <kbd>W</kbd>/<kbd>S</kbd> gaz &nbsp; <kbd>↑</kbd>/<kbd>↓</kbd> dal/tırman &nbsp; <kbd>←</kbd>/<kbd>→</kbd> dön<br>
+    <kbd>Boşluk</kbd> GPS kes/aç &nbsp;·&nbsp; sürükle: kamera döndür &nbsp;·&nbsp; tekerlek: zoom<br>
+    GPS varken model rüzgarı öğrenir; kesince <b style="color:#46C98D">yeşil hayalet</b> = canlı tahmin.
   </div>
 </main>
 <div id="hud">
   <div class="cell"><div class="lb">GPS</div><div class="vl"><span class="pill lock" id="gps">AÇIK</span></div></div>
+  <div class="cell"><div class="lb">Gaz</div><div class="vl" id="gaz">—</div></div>
   <div class="cell"><div class="lb">Hava hızı</div><div class="vl" id="ias">—</div></div>
+  <div class="cell"><div class="lb">İrtifa</div><div class="vl" id="alt">—</div></div>
+  <div class="cell"><div class="lb">Tırmanma</div><div class="vl" id="vs">—</div></div>
   <div class="cell"><div class="lb">Başlık</div><div class="vl" id="hdg">—</div></div>
-  <div class="cell"><div class="lb">Rüzgar (öğrenilen)</div><div class="vl" id="wind">—</div></div>
-  <div class="cell err"><div class="lb">Kesinti hatası</div><div class="vl" id="hata">—</div></div>
-  <div class="cell"><div class="lb">Kesinti süresi</div><div class="vl" id="sure">—</div></div>
+  <div class="cell"><div class="lb">Rüzgar (öğr.)</div><div class="vl" id="wind">—</div></div>
+  <div class="cell err"><div class="lb">Yatay hata</div><div class="vl" id="hata">—</div></div>
+  <div class="cell"><div class="lb">İrtifa hatası</div><div class="vl" id="halt">—</div></div>
+  <div class="cell"><div class="lb">Kesinti</div><div class="vl" id="sure">—</div></div>
 </div>
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
@@ -74,160 +75,175 @@ let W=0,H=0,DPR=1;
 function boyutla(){DPR=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
 addEventListener('resize',boyutla);
 
-// === UÇAK DURUMU (dünya: x=doğu, y=kuzey, metre) ===
-const DT=0.5;                       // 2Hz
-let pos={x:0,y:0};                  // gerçek konum
-let ias=16;                         // hava hızı m/s
-let hdg=0;                          // başlık rad (0=kuzey/+y)
-let wind={x:1.5,y:-1.0};            // gerçek rüzgar (gizli)
-let windHedef={x:1.5,y:-1.0};       // rüzgar hedefi (yumuşak geçiş)
-let gust={x:0,y:0};                 // gust dalgalanması
-// tahmin
+// === DURUM (dünya: x=doğu, y=kuzey, z=irtifa; metre) ===
+const DT=0.5;
+let pos={x:0,y:0,z:150};
+let gaz=0.55;                        // 0..1
+let ias=16, hdg=0, pitch=0;          // pitch rad (+ tırmanma)
+let wind={x:1.5,y:-1.0}, windHedef={x:1.5,y:-1.0}, gust={x:0,y:0};
 let gpsAcik=true;
-let ogrWind={x:0,y:0};              // GPS'ten öğrenilen rüzgar (son ~10s gerçek ortalaması)
-let ruzgarGecmis=[];               // son N rüzgar örneği (kayan pencere fit)
-let simHiz=1;                     // sim hız çarpanı
-let tahmin={x:0,y:0};              // kesinti sırasında tahmini konum
-let kesBasla=null, kesSure=0, hata=0;
-// kamera (serbest pan+zoom, İHA'ya kilitli DEĞİL)
-let cam={x:0,y:0,zoom:6}, ortala=false;
-let iz=[], izT=[];                  // gerçek + tahmin izleri
+let ogrWind={x:0,y:0}, ruzgarGecmis=[];
+let tahmin={x:0,y:0,z:150}, kesBasla=null, kesSure=0, hata=0, haltErr=0;
+let iz=[], izT=[];
+let simHiz=1;
+// kamera (chase, serbest döndür/zoom)
+let cam={az:0, el:0.35, zoom:1.0, takip:true};
 
 const tus={};
-addEventListener('keydown',e=>{
-  if(e.code==='Space'){e.preventDefault(); gpsKes(); return;}
-  tus[e.key]=true;
-});
-addEventListener('keyup',e=>{tus[e.key]=false;});
+addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault();gpsKes();return;} tus[e.key.toLowerCase()]=true; if(['arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault();});
+addEventListener('keyup',e=>{tus[e.key.toLowerCase()]=false;});
 
 function gpsKes(){
-  gpsAcik=!gpsAcik;
-  const b=document.getElementById('kes');
-  if(!gpsAcik){                     // KESİNTİ başladı: tahmini şu ankinden başlat, rüzgarı dondur
-    tahmin={x:pos.x,y:pos.y}; kesBasla=performance.now(); kesSure=0; izT=[{x:pos.x,y:pos.y}];
-    b.classList.add('on'); b.textContent='⛔ KESİNTİ AKTİF (boşluk=aç)';
-  } else {
-    b.classList.remove('on'); b.textContent='⛔ GPS KES (boşluk)';
-    hata=0;
-  }
+  gpsAcik=!gpsAcik; const b=document.getElementById('kes');
+  if(!gpsAcik){ tahmin={x:pos.x,y:pos.y,z:pos.z}; kesBasla=performance.now();kesSure=0;izT=[{x:pos.x,y:pos.y,z:pos.z}];
+    b.classList.add('on');b.textContent='⛔ KESİNTİ AKTİF'; }
+  else{ b.classList.remove('on');b.textContent='⛔ GPS KES';hata=0;haltErr=0; }
 }
 document.getElementById('kes').onclick=gpsKes;
-document.getElementById('ruz').onclick=()=>{ windHedef={x:(Math.random()*6-3), y:(Math.random()*6-3)}; };  // makul ±3 m/s, yumuşak geçiş
-document.getElementById('mrk').onclick=(e)=>{ ortala=!ortala; e.target.classList.toggle('on',ortala); };
-document.getElementById('sifir').onclick=()=>{ pos={x:0,y:0}; iz=[]; izT=[]; if(!gpsAcik)gpsKes(); };
-function hizAyar(h,el){ simHiz=h; ['h05','h1','h2','h4'].forEach(id=>document.getElementById(id).style.background=''); if(el)el.style.background='#1D3350'; }
-document.getElementById('h05').onclick=e=>hizAyar(0.5,e.target);
-document.getElementById('h1').onclick=e=>hizAyar(1,e.target);
-document.getElementById('h2').onclick=e=>hizAyar(2,e.target);
-document.getElementById('h4').onclick=e=>hizAyar(4,e.target);
-hizAyar(1,document.getElementById('h1'));   // varsayılan 1× vurgulu
+document.getElementById('ruz').onclick=()=>{windHedef={x:Math.random()*6-3,y:Math.random()*6-3};};
+document.getElementById('sifir').onclick=()=>{pos={x:0,y:0,z:150};iz=[];izT=[];if(!gpsAcik)gpsKes();};
+function hz(h,el){simHiz=h;['h1','h2','h4'].forEach(i=>document.getElementById(i).style.background='');if(el)el.style.background='#1D3350';}
+document.getElementById('h1').onclick=e=>hz(1,e.target);document.getElementById('h2').onclick=e=>hz(2,e.target);document.getElementById('h4').onclick=e=>hz(4,e.target);
+hz(1,document.getElementById('h1'));
 
-// fizik adımı
 function adim(){
-  // kontrol
-  if(tus['ArrowUp']) ias=Math.min(30,ias+0.3);
-  if(tus['ArrowDown']) ias=Math.max(6,ias-0.3);
-  if(tus['ArrowLeft']) hdg-=0.035;
-  if(tus['ArrowRight']) hdg+=0.035;
-  // rüzgar hedefe YUMUŞAK geçer (gerçek rüzgar ani değişmez; tahmin takip edebilir)
+  if(tus['w']) gaz=Math.min(1,gaz+0.012);
+  if(tus['s']) gaz=Math.max(0,gaz-0.012);
+  if(tus['arrowup']) pitch=Math.min(0.35,pitch+0.02);
+  if(tus['arrowdown']) pitch=Math.max(-0.35,pitch-0.02);
+  if(!tus['arrowup']&&!tus['arrowdown']) pitch*=0.94;      // pitch merkeze döner
+  if(tus['arrowleft']) hdg-=0.035;
+  if(tus['arrowright']) hdg+=0.035;
+  // gaz → hedef hava hızı (6..30)
+  const iasHedef=6+gaz*24; ias+=(iasHedef-ias)*0.05;
+  // rüzgar yumuşak
   wind.x+=(windHedef.x-wind.x)*0.01; wind.y+=(windHedef.y-wind.y)*0.01;
-  // gust rastgele yürüyüş (hafif türbülans — düz uçuşta çok az sapma)
-  gust.x+=(Math.random()-0.5)*0.15; gust.y+=(Math.random()-0.5)*0.15;
-  gust.x*=0.92; gust.y*=0.92;
+  gust.x+=(Math.random()-0.5)*0.15;gust.y+=(Math.random()-0.5)*0.15;gust.x*=0.92;gust.y*=0.92;
   const wx=wind.x+gust.x, wy=wind.y+gust.y;
-  // hava hız vektörü (başlık yönünde)
-  const ax=ias*Math.sin(hdg), ay=ias*Math.cos(hdg);
-  // gerçek yer hızı = hava + rüzgar
+  // yatay hava hızı = ias*cos(pitch), dikey = ias*sin(pitch)
+  const yat=ias*Math.cos(pitch), vz=ias*Math.sin(pitch);
+  const ax=yat*Math.sin(hdg), ay=yat*Math.cos(hdg);
   const gx=ax+wx, gy=ay+wy;
-  pos.x+=gx*DT; pos.y+=gy*DT;
-  iz.push({x:pos.x,y:pos.y}); if(iz.length>4000)iz.shift();
+  pos.x+=gx*DT; pos.y+=gy*DT; pos.z=Math.max(5,pos.z+vz*DT);
+  iz.push({x:pos.x,y:pos.y,z:pos.z}); if(iz.length>3000)iz.shift();
 
   if(gpsAcik){
-    // GPS varken rüzgarı ÖĞREN: son ~14s (28 örnek) GERÇEK ortalaması → geç kalmaz,
-    // kesme anında doğru → tahmin sürekli (sıçramasız) başlar. (production z-fit'in özü)
-    ruzgarGecmis.push({x:gx-ax, y:gy-ay}); if(ruzgarGecmis.length>28) ruzgarGecmis.shift();
+    ruzgarGecmis.push({x:gx-ax,y:gy-ay}); if(ruzgarGecmis.length>28)ruzgarGecmis.shift();
     ogrWind.x=ruzgarGecmis.reduce((s,r)=>s+r.x,0)/ruzgarGecmis.length;
     ogrWind.y=ruzgarGecmis.reduce((s,r)=>s+r.y,0)/ruzgarGecmis.length;
   } else {
-    // KESİNTİ: hava_hız + DONMUŞ öğrenilen rüzgar ile dead-reckon (production fizik-fallback)
+    // yatay: hava + donmuş rüzgar (fizik-fallback); irtifa: baro (bağımsız, iyi)
     const px=ax+ogrWind.x, py=ay+ogrWind.y;
     tahmin.x+=px*DT; tahmin.y+=py*DT;
-    izT.push({x:tahmin.x,y:tahmin.y}); if(izT.length>4000)izT.shift();
+    tahmin.z=pos.z + (Math.random()-0.5)*2;    // baro ~±1-2m (bağımsız sensör)
+    izT.push({x:tahmin.x,y:tahmin.y,z:tahmin.z}); if(izT.length>3000)izT.shift();
     kesSure=(performance.now()-kesBasla)/1000;
-    hata=Math.hypot(tahmin.x-pos.x, tahmin.y-pos.y);
+    hata=Math.hypot(tahmin.x-pos.x,tahmin.y-pos.y);
+    haltErr=Math.abs(tahmin.z-pos.z);
   }
 }
 
-// dünya→ekran (serbest kamera)
-function P(x,y){
-  const cx=ortala?pos.x:cam.x, cy=ortala?pos.y:cam.y;
-  return [W/2+(x-cx)*cam.zoom, H/2-(y-cy)*cam.zoom];
+// === 3B PERSPEKTİF (chase kamera) ===
+const ZK=1.0;
+let cE=[0,0,0],cR=[1,0,0],cU=[0,1,0],cF=[0,0,1];
+function kameraKur(){
+  // hedef: uçak; yön: başlık; göz: arkada+üstte
+  const fx=Math.sin(hdg),fy=Math.cos(hdg);           // yatay bakış yönü
+  const az=cam.az, caz=Math.cos(az),saz=Math.sin(az);
+  // kullanıcı azimut ofseti
+  const dx=fx*caz - fy*saz, dy=fx*saz + fy*caz;
+  cF=[dx,dy,-Math.sin(cam.el)]; const fn=Math.hypot(...cF);cF=cF.map(v=>v/fn);
+  const up=[0,0,1];
+  cR=[cF[1]*up[2]-cF[2]*up[1],cF[2]*up[0]-cF[0]*up[2],cF[0]*up[1]-cF[1]*up[0]];const rn=Math.hypot(...cR)||1;cR=cR.map(v=>v/rn);
+  cU=[cR[1]*cF[2]-cR[2]*cF[1],cR[2]*cF[0]-cR[0]*cF[2],cR[0]*cF[1]-cR[1]*cF[0]];
+  const mesafe=90/cam.zoom;
+  cE=[pos.x-cF[0]*mesafe, pos.y-cF[1]*mesafe, pos.z*ZK-cF[2]*mesafe+18];
 }
-function ihaCiz(x,y,ang,renk,s){
-  const q=P(x,y); ctx.save(); ctx.translate(q[0],q[1]); ctx.rotate(-ang);
-  ctx.fillStyle=renk; ctx.strokeStyle='#0A101C'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,-s); ctx.lineTo(s*0.6,s*0.6); ctx.lineTo(0,s*0.25); ctx.lineTo(-s*0.6,s*0.6); ctx.closePath();
-  ctx.fill(); ctx.stroke(); ctx.restore();
+function P(x,y,z){
+  const rx=x-cE[0],ry=y-cE[1],rz=z*ZK-cE[2];
+  const cz=rx*cF[0]+ry*cF[1]+rz*cF[2]; if(cz<1)return null;
+  const cx=rx*cR[0]+ry*cR[1]+rz*cR[2], cy=rx*cU[0]+ry*cU[1]+rz*cU[2];
+  const f=Math.min(W,H)*0.9;
+  return [W/2+f*cx/cz, H/2-f*cy/cz];
 }
-function izCiz(a,renk,w,al){ if(a.length<2)return; ctx.globalAlpha=al;ctx.strokeStyle=renk;ctx.lineWidth=w;ctx.beginPath();
-  let p=P(a[0].x,a[0].y);ctx.moveTo(p[0],p[1]); for(let i=1;i<a.length;i++){p=P(a[i].x,a[i].y);ctx.lineTo(p[0],p[1]);} ctx.stroke();ctx.globalAlpha=1;}
-
+function ucak(x,y,z,ang,pit,renk,s){
+  const q=P(x,y,z); if(!q)return;
+  // gölge (zemine)
+  const g=P(x,y,0); if(g){ctx.globalAlpha=.25;ctx.strokeStyle=renk;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(q[0],q[1]);ctx.lineTo(g[0],g[1]);ctx.stroke();ctx.fillStyle=renk;ctx.beginPath();ctx.arc(g[0],g[1],2,0,7);ctx.fill();ctx.globalAlpha=1;}
+  // basit ekran-uzay üçgen (yön için burun ileri projeksiyon)
+  const bur=P(x+Math.sin(ang)*8,y+Math.cos(ang)*8,z+Math.sin(pit)*8);
+  let a=0; if(bur)a=Math.atan2(bur[1]-q[1],bur[0]-q[0]);
+  ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(a);
+  ctx.fillStyle=renk;ctx.strokeStyle='#0A101C';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(s,0);ctx.lineTo(-s*0.6,s*0.5);ctx.lineTo(-s*0.3,0);ctx.lineTo(-s*0.6,-s*0.5);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-s*0.1,s*0.85);ctx.lineTo(s*0.2,0);ctx.lineTo(-s*0.1,-s*0.85);ctx.lineWidth=2.5;ctx.strokeStyle=renk;ctx.stroke();
+  ctx.restore();
+}
+function izCiz(a,renk,w,al){if(a.length<2)return;ctx.globalAlpha=al;ctx.strokeStyle=renk;ctx.lineWidth=w;ctx.beginPath();let pen=false;
+  for(let i=0;i<a.length;i++){const p=P(a[i].x,a[i].y,a[i].z);if(!p){pen=false;continue;}if(!pen){ctx.moveTo(p[0],p[1]);pen=true;}else ctx.lineTo(p[0],p[1]);}ctx.stroke();ctx.globalAlpha=1;}
 function zemin(){
-  ctx.fillStyle=C('--bg');ctx.fillRect(0,0,W,H);
-  const adim=100*cam.zoom>25?100:500;
-  ctx.strokeStyle=C('--line');ctx.lineWidth=1;ctx.beginPath();
-  const cx=ortala?pos.x:cam.x, cy=ortala?pos.y:cam.y;
-  const x0=cx-W/2/cam.zoom, x1=cx+W/2/cam.zoom, y0=cy-H/2/cam.zoom, y1=cy+H/2/cam.zoom;
-  for(let x=Math.floor(x0/adim)*adim;x<=x1;x+=adim){let a=P(x,y0),b=P(x,y1);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
-  for(let y=Math.floor(y0/adim)*adim;y<=y1;y+=adim){let a=P(x0,y),b=P(x1,y);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+  // gökyüzü/zemin
+  const ufuk=P(pos.x+Math.sin(hdg)*1e5,pos.y+Math.cos(hdg)*1e5,0);
+  const yh=ufuk?Math.max(0,Math.min(H,ufuk[1])):H*0.4;
+  let sky=ctx.createLinearGradient(0,0,0,yh);sky.addColorStop(0,'#0C1A30');sky.addColorStop(1,'#123057');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,yh);ctx.fillStyle='#0A1220';ctx.fillRect(0,yh,W,H-yh);
+  // ızgara
+  ctx.strokeStyle=C('--line');ctx.lineWidth=1;ctx.beginPath();const ad=100;
+  const cx=Math.round(pos.x/ad)*ad, cy=Math.round(pos.y/ad)*ad, R=1200;
+  for(let x=cx-R;x<=cx+R;x+=ad){let a=P(x,cy-R,0),b=P(x,cy+R,0);if(a&&b){ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}}
+  for(let y=cy-R;y<=cy+R;y+=ad){let a=P(cx-R,y,0),b=P(cx+R,y,0);if(a&&b){ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}}
   ctx.stroke();
-  ctx.fillStyle=C('--dim');ctx.font='11px '+C('--mono');ctx.fillText(adim+' m ızgara · zoom '+cam.zoom.toFixed(1)+'×',14,H-12);
 }
-
+// yan panel: gaz çubuğu + altimetre
+function paneller(){
+  // GAZ (sol)
+  const gx=26,gy=H-190,gw=16,gh=140;
+  ctx.fillStyle='#12203A';ctx.fillRect(gx,gy,gw,gh);
+  ctx.fillStyle=C('--gaz');ctx.fillRect(gx,gy+gh*(1-gaz),gw,gh*gaz);
+  ctx.strokeStyle=C('--line');ctx.strokeRect(gx,gy,gw,gh);
+  ctx.fillStyle=C('--muted');ctx.font='10px '+C('--mono');ctx.fillText('GAZ',gx-2,gy-6);
+  ctx.fillText((gaz*100).toFixed(0)+'%',gx-2,gy+gh+14);
+  // ALTİMETRE (sağ)
+  const ax=W-42,ay=H-190,aw=16,ah=140,amax=400;
+  ctx.fillStyle='#12203A';ctx.fillRect(ax,ay,aw,ah);
+  ctx.fillStyle=C('--ruzgar');const hn=Math.min(1,pos.z/amax);ctx.fillRect(ax,ay+ah*(1-hn),aw,ah*hn);
+  ctx.strokeStyle=C('--line');ctx.strokeRect(ax,ay,aw,ah);
+  ctx.fillStyle=C('--muted');ctx.fillText('İRT',ax,ay-6);ctx.fillText(pos.z.toFixed(0)+'m',ax-6,ay+ah+14);
+  // yapay ufuk (pitch göstergesi) — küçük
+  ctx.save();ctx.translate(W/2,54);ctx.strokeStyle=C('--tahmin');ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-26,-pitch*80);ctx.lineTo(26,-pitch*80);ctx.stroke();
+  ctx.strokeStyle=C('--dim');ctx.beginPath();ctx.moveTo(-30,0);ctx.lineTo(-8,0);ctx.moveTo(8,0);ctx.lineTo(30,0);ctx.stroke();ctx.restore();
+}
 function ciz(){
-  zemin();
+  kameraKur(); zemin();
   izCiz(iz,C('--true'),1.6,.8);
   if(!gpsAcik){
-    izCiz(izT,C('--tahmin'),2.2,.95);
-    // hata çizgisi
-    const a=P(pos.x,pos.y),b=P(tahmin.x,tahmin.y);
-    ctx.strokeStyle=C('--alarm');ctx.setLineDash([4,4]);ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.setLineDash([]);
-    ihaCiz(tahmin.x,tahmin.y,hdg,C('--tahmin'),10);   // tahmini İHA
+    izCiz(izT,C('--tahmin'),2.4,.95);
+    const a=P(pos.x,pos.y,pos.z),b=P(tahmin.x,tahmin.y,tahmin.z);
+    if(a&&b){ctx.strokeStyle=C('--alarm');ctx.setLineDash([4,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.setLineDash([]);}
+    ucak(tahmin.x,tahmin.y,tahmin.z,hdg,pitch,C('--tahmin'),9);
   }
-  // rüzgar oku (öğrenilen)
-  const wq=P((ortala?pos.x:cam.x),(ortala?pos.y:cam.y));
-  ctx.strokeStyle=C('--ruzgar');ctx.lineWidth=2;ctx.beginPath();
-  ctx.moveTo(60,60);ctx.lineTo(60+ogrWind.x*8,60-ogrWind.y*8);ctx.stroke();
-  ctx.fillStyle=C('--ruzgar');ctx.font='11px '+C('--mono');ctx.fillText('rüzgar',60,44);
-  ihaCiz(pos.x,pos.y,hdg,C('--true'),12);             // gerçek İHA
+  ucak(pos.x,pos.y,pos.z,hdg,pitch,C('--true'),11);
+  paneller();
   // HUD
-  document.getElementById('ias').textContent=ias.toFixed(1)+' m/s';
-  let d=(hdg*180/Math.PI)%360; if(d<0)d+=360;
-  document.getElementById('hdg').textContent=d.toFixed(0)+'°';
-  document.getElementById('wind').textContent=Math.hypot(ogrWind.x,ogrWind.y).toFixed(1)+' m/s';
-  document.getElementById('hata').textContent=gpsAcik?'—':hata.toFixed(1)+' m';
-  document.getElementById('sure').textContent=gpsAcik?'—':kesSure.toFixed(1)+' s';
-  const g=document.getElementById('gps');
-  g.textContent=gpsAcik?'AÇIK':'KESİK'; g.className='pill '+(gpsAcik?'lock':'out');
+  const set=(id,v)=>document.getElementById(id).textContent=v;
+  set('gaz',(gaz*100).toFixed(0)+'%'); set('ias',ias.toFixed(1)+' m/s');
+  set('alt',pos.z.toFixed(0)+' m'); set('vs',(ias*Math.sin(pitch)).toFixed(1)+' m/s');
+  let d=(hdg*180/Math.PI)%360;if(d<0)d+=360;set('hdg',d.toFixed(0)+'°');
+  set('wind',Math.hypot(ogrWind.x,ogrWind.y).toFixed(1)+' m/s');
+  set('hata',gpsAcik?'—':hata.toFixed(1)+' m'); set('halt',gpsAcik?'—':haltErr.toFixed(1)+' m');
+  set('sure',gpsAcik?'—':kesSure.toFixed(1)+' s');
+  const g=document.getElementById('gps');g.textContent=gpsAcik?'AÇIK':'KESİK';g.className='pill '+(gpsAcik?'lock':'out');
 }
-
-let birikim=0,son=performance.now();
-function dongu(now){
-  birikim+=(now-son)/1000*2*simHiz;  // 2Hz sim × hız çarpanı
-  let n=0; while(birikim>=1 && n<10){ adim(); birikim-=1; n++; }
-  son=now; ciz(); requestAnimationFrame(dongu);
-}
-
-// fare: pan + zoom
-const sahne=document.getElementById('sahne'); let srk=false,sxy=[0,0];
+let bir=0,son=performance.now();
+function dongu(now){bir+=(now-son)/1000*2*simHiz;let n=0;while(bir>=1&&n<12){adim();bir-=1;n++;}son=now;ciz();requestAnimationFrame(dongu);}
+// fare: kamera döndür + zoom
+const sahne=document.getElementById('sahne');let srk=false,sxy=[0,0];
 sahne.addEventListener('mousedown',e=>{srk=true;sxy=[e.clientX,e.clientY];sahne.classList.add('tut');});
 addEventListener('mouseup',()=>{srk=false;sahne.classList.remove('tut');});
-addEventListener('mousemove',e=>{if(!srk)return; if(ortala){ortala=false;document.getElementById('mrk').classList.remove('on');cam={x:pos.x,y:pos.y,zoom:cam.zoom};}
-  cam.x-=(e.clientX-sxy[0])/cam.zoom; cam.y+=(e.clientY-sxy[1])/cam.zoom; sxy=[e.clientX,e.clientY];});
-sahne.addEventListener('wheel',e=>{e.preventDefault(); cam.zoom=Math.max(0.3,Math.min(80,cam.zoom*(e.deltaY<0?1.12:0.893)));},{passive:false});
-
-boyutla(); requestAnimationFrame(dongu);
+addEventListener('mousemove',e=>{if(!srk)return;cam.az+=(e.clientX-sxy[0])*0.006;cam.el=Math.max(-0.2,Math.min(1.2,cam.el+(e.clientY-sxy[1])*0.004));sxy=[e.clientX,e.clientY];});
+sahne.addEventListener('wheel',e=>{e.preventDefault();cam.zoom=Math.max(0.3,Math.min(6,cam.zoom*(e.deltaY<0?1.1:0.91)));},{passive:false});
+boyutla();requestAnimationFrame(dongu);
 </script>
 </body>
 </html>
