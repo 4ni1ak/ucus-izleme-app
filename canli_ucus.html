@@ -100,7 +100,7 @@ function gpsKes(){
   else{ b.classList.remove('on');b.textContent='⛔ GPS KES';hata=0;haltErr=0; }
 }
 document.getElementById('kes').onclick=gpsKes;
-document.getElementById('ruz').onclick=()=>{windHedef={x:Math.random()*6-3,y:Math.random()*6-3};};
+document.getElementById('ruz').onclick=()=>{windHedef={x:Math.random()*5-2.5,y:Math.random()*5-2.5};};  // ±2.5 m/s, yumuşak geçiş
 document.getElementById('sifir').onclick=()=>{pos={x:0,y:0,z:150};iz=[];izT=[];if(!gpsAcik)gpsKes();};
 function hz(h,el){simHiz=h;['h1','h2','h4'].forEach(i=>document.getElementById(i).style.background='');if(el)el.style.background='#1D3350';}
 document.getElementById('h1').onclick=e=>hz(1,e.target);document.getElementById('h2').onclick=e=>hz(2,e.target);document.getElementById('h4').onclick=e=>hz(4,e.target);
@@ -116,11 +116,11 @@ function adim(){
   if(tus['arrowright']) hdg+=0.035;
   // gaz → hedef hava hızı (6..30), yumuşak
   const iasHedef=6+gaz*24; ias+=(iasHedef-ias)*0.06;
-  // rüzgar yumuşak
-  wind.x+=(windHedef.x-wind.x)*0.01; wind.y+=(windHedef.y-wind.y)*0.01;
-  // gust: hafif türbülans, sınırlı (30s kesintide ~gerçekçi ~20m sapma)
-  gust.x+=(Math.random()-0.5)*0.08;gust.y+=(Math.random()-0.5)*0.08;gust.x*=0.9;gust.y*=0.9;
-  gust.x=Math.max(-1.2,Math.min(1.2,gust.x));gust.y=Math.max(-1.2,Math.min(1.2,gust.y));
+  // rüzgar YAVAŞ değişir (gerçek atmosfer; tahmin rahat takip eder)
+  wind.x+=(windHedef.x-wind.x)*0.006; wind.y+=(windHedef.y-wind.y)*0.006;
+  // gust: hafif türbülans, sınırlı
+  gust.x+=(Math.random()-0.5)*0.06;gust.y+=(Math.random()-0.5)*0.06;gust.x*=0.9;gust.y*=0.9;
+  gust.x=Math.max(-0.9,Math.min(0.9,gust.x));gust.y=Math.max(-0.9,Math.min(0.9,gust.y));
   const wx=wind.x+gust.x, wy=wind.y+gust.y;
   // yatay hava hızı = ias*cos(pitch), dikey = ias*sin(pitch)
   const yat=ias*Math.cos(pitch), vz=ias*Math.sin(pitch);
@@ -130,9 +130,14 @@ function adim(){
   iz.push({x:pos.x,y:pos.y,z:pos.z}); if(iz.length>3000)iz.shift();
 
   if(gpsAcik){
-    ruzgarGecmis.push({x:gx-ax,y:gy-ay}); if(ruzgarGecmis.length>40)ruzgarGecmis.shift();  // 20s pencere = kararlı rüzgar tahmini
-    ogrWind.x=ruzgarGecmis.reduce((s,r)=>s+r.x,0)/ruzgarGecmis.length;
-    ogrWind.y=ruzgarGecmis.reduce((s,r)=>s+r.y,0)/ruzgarGecmis.length;
+    // RÜZGAR TAHMİNİ: yer_hızı − hava_hızı = rüzgar+gust. Ağırlıklı ortalama —
+    // yeni örneklere daha çok ağırlık (rüzgar değişimini düşük gecikmeyle takip),
+    // ama gust'ı bastıracak kadar uzun pencere (16s). Gaz/başlıktan BAĞIMSIZ (hava_hızı sadeleşir).
+    ruzgarGecmis.push({x:gx-ax,y:gy-ay}); if(ruzgarGecmis.length>32)ruzgarGecmis.shift();
+    let sx=0,sy=0,sw=0;
+    for(let i=0;i<ruzgarGecmis.length;i++){ const a=(i+1);      // lineer ağırlık: yeni=ağır
+      sx+=ruzgarGecmis[i].x*a; sy+=ruzgarGecmis[i].y*a; sw+=a; }
+    ogrWind.x=sx/sw; ogrWind.y=sy/sw;
   } else {
     // yatay: hava + donmuş rüzgar (fizik-fallback); irtifa: baro (bağımsız, iyi)
     const px=ax+ogrWind.x, py=ay+ogrWind.y;
