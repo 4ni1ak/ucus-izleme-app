@@ -71,14 +71,14 @@
   <div class="cell"><div class="lb">Uçuş süresi</div><div class="vl" id="tval">T+0.0s</div></div>
   <div class="cell"><div class="lb">GPS</div><div class="vl"><span class="pill lock" id="gps">LOCK</span></div></div>
   <div class="cell"><div class="lb">İrtifa</div><div class="vl" id="alt">—</div></div>
-  <div class="cell err v71"><div class="lb"><i></i>PRODUCTION (füzyon)</div><div class="vl" id="e71">—</div></div>
-  <div class="cell err v66"><div class="lb"><i></i>AI Ensemble</div><div class="vl" id="e66">—</div></div>
-  <div class="cell err v7"><div class="lb"><i></i>v7 Tek Model</div><div class="vl" id="e7">—</div></div>
-  <div class="cell err fizik"><div class="lb"><i></i>Fizik Baseline</div><div class="vl" id="ef">—</div></div>
-  <div id="not">3B görünüm: beyaz iz = gerçek rota (GPS), zemin ızgarası = min irtifa düzlemi,
-  dikey çizgi = yerden yükseklik. Her 60 saniyede bir 30 saniyelik GPS kesintisi; üç kestirimci
-  sensör-only tahmin üretir, hatalar donuk iz olarak kalır. Kesinti bitince yeşil iz GPS
-  dönüşüyle geriye kapanır (RETRO düzeltme, ~6m).</div>
+  <div class="cell err v71"><div class="lb"><i></i>◆ PRODUCTION (füzyon) — ÜRÜN</div><div class="vl" id="e71">—</div></div>
+  <div class="cell err v66"><div class="lb"><i></i>AI Ensemble · bileşen</div><div class="vl" id="e66">—</div></div>
+  <div class="cell err v7"><div class="lb"><i></i>v7 Tek Model · bileşen</div><div class="vl" id="e7">—</div></div>
+  <div class="cell err fizik"><div class="lb"><i></i>Fizik · bileşen</div><div class="vl" id="ef">—</div></div>
+  <div id="not">Beyaz iz = gerçek rota (GPS). <b>Yeşil = PRODUCTION füzyon = gerçek çıktı</b>
+  (uçuş boyunca ~12–24m). Camgöbeği/amber/mor = ham tek-model BİLEŞENLERİ — yabancı pistte
+  tek başına yüzlerce m sapabilir; <b>füzyon bu yüzden var</b>: her kesintide en güvenilir
+  bileşeni seçer. Kesinti bitince yeşil iz GPS dönüşüyle geriye kapanır (RETRO ~6m).</div>
 </div>
 <script>
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
