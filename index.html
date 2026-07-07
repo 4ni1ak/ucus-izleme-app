@@ -1,4 +1,11 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GPS'siz Konum — 3D Canlı Uçuş İzleme</title>
+</head>
+<body>
 <style>
   :root{
     --bg:#0A101C; --panel:#111A2B; --panel2:#0E1626; --line:#1B2A44;
@@ -55,9 +62,10 @@
     <button class="btn spd on" data-s="4">4×</button>
     <button class="btn spd" data-s="10">10×</button>
     <button class="btn spd" id="tekrar" title="Baştan">⟲</button>
+    <button class="btn spd" id="sabit" title="Sabit görüş (oto-dönüşü durdur)">🔒 Sabit</button>
   </div>
 </header>
-<main id="sahne"><canvas id="cv"></canvas><div id="ipucu">sürükle: döndür · tekerlek: yakınlaş</div></main>
+<main id="sahne"><canvas id="cv"></canvas><div id="ipucu">sürükle: döndür · tekerlek: yakınlaş · 🔒 Sabit: oto-dönüşü kilitle</div></main>
 <div id="hud">
   <div class="cell"><div class="lb">Uçuş süresi</div><div class="vl" id="tval">T+0.0s</div></div>
   <div class="cell"><div class="lb">GPS</div><div class="vl"><span class="pill lock" id="gps">LOCK</span></div></div>
@@ -163,6 +171,31 @@ function nokta3(p, renk, r, dikey){
   }
   ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],r,0,7); ctx.fill();
 }
+// İHA/drone üstten-görünüm silüeti — hareket yönüne döner (kuzey→doğu izdüşümü)
+function ihaCiz(p, onceki, renk){
+  const q=proj(p);
+  // yön: dünya hız vektörünü ekrana yansıt (2 ucu projekte et)
+  let ang=0;
+  if(onceki){ const a=proj(onceki); ang=Math.atan2(q[1]-a[1], q[0]-a[0]); }
+  // dikey yükseklik çizgisi
+  const qz=proj([p[0],p[1],taban]);
+  ctx.strokeStyle=renk; ctx.globalAlpha=.30; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1;
+  ctx.save(); ctx.translate(q[0],q[1]); ctx.rotate(ang);
+  const s=9;                                   // İHA ölçeği
+  ctx.fillStyle=renk; ctx.strokeStyle='#0A101C'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(s,0);                             // burun
+  ctx.lineTo(-s*0.5, s*0.28);                  // gövde sağ
+  ctx.lineTo(-s*0.25, 0);
+  ctx.lineTo(-s*0.5,-s*0.28);                  // gövde sol
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // kanatlar
+  ctx.beginPath();
+  ctx.moveTo(-s*0.05, s*0.75); ctx.lineTo(s*0.15,0); ctx.lineTo(-s*0.05,-s*0.75);
+  ctx.lineWidth=2.5; ctx.strokeStyle=renk; ctx.stroke();
+  ctx.restore();
+}
 
 function ciz(){
   const u = VERI[ucusKey];
@@ -204,8 +237,10 @@ function ciz(){
     ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(q[0],q[1],6,0,7); ctx.stroke(); ctx.setLineDash([]);
     document.getElementById('gps').textContent='KESİNTİ';
     document.getElementById('gps').className='pill out';
+    // gerçek konumda İHA
+    ihaCiz(gt, ti>0?u.true[ti-1]:null, C('--true'));
   } else {
-    nokta3(gt, C('--true'), 5, true);
+    ihaCiz(gt, ti>0?u.true[ti-1]:null, C('--true'));
     document.getElementById('gps').textContent='LOCK';
     document.getElementById('gps').className='pill lock';
   }
@@ -223,7 +258,7 @@ function dongu(now){
     if(acc>=1){ t += Math.floor(acc); acc -= Math.floor(acc); }
     const T=VERI[ucusKey].true.length;
     if(t>=T){ t=T-1; playing=false; belirtele(); }
-    if(!surukleme) az += 0.0006*speed;   // hafif oto-yörünge
+    if(!surukleme && !sabitGorus) az += 0.0006*speed;   // hafif oto-yörünge (sabit-görüşte kapalı)
   }
   last=now; ciz(); requestAnimationFrame(dongu);
 }
@@ -231,6 +266,8 @@ function belirtele(){ document.getElementById('play').textContent = playing?'❚
 
 document.getElementById('play').onclick=()=>{ playing=!playing; if(playing&&t>=VERI[ucusKey].true.length-1)t=0; belirtele(); };
 document.getElementById('tekrar').onclick=()=>{ t=0; playing=true; belirtele(); };
+let sabitGorus=false;
+document.getElementById('sabit').onclick=(e)=>{ sabitGorus=!sabitGorus; e.target.classList.toggle('on',sabitGorus); };
 document.querySelectorAll('.btn.spd[data-s]').forEach(b=>b.onclick=()=>{
   speed=+b.dataset.s;
   document.querySelectorAll('.btn.spd[data-s]').forEach(x=>x.classList.toggle('on',x===b));
@@ -280,3 +317,6 @@ fetch('./data/ucuslar.json')
     document.getElementById('not').textContent = 'HATA: veri yüklenemedi (' + e.message + '). ./serve.sh ile çalıştırdığınızdan emin olun.';
   });
 </script>
+
+</body>
+</html>
