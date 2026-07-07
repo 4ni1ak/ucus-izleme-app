@@ -41,6 +41,9 @@
 <header>
   <h1><b>CANLI UÇUŞ</b> · GPS'siz Konum Kestirimi</h1>
   <span class="sp"></span>
+  <button class="btn" id="h05" title="Yavaş">0.5×</button>
+  <button class="btn" id="h1" title="Normal">1×</button>
+  <button class="btn" id="h2" title="Hızlı">2×</button>
   <button class="btn kes" id="kes" title="Boşluk tuşu">⛔ GPS KES (boşluk)</button>
   <button class="btn" id="ruz" title="Rüzgarı değiştir">🌬 Rüzgar</button>
   <button class="btn" id="mrk" title="İHA'yı ortala">🎯 Ortala</button>
@@ -79,7 +82,9 @@ let wind={x:1.5,y:-1.0};            // gerçek rüzgar (gizli)
 let gust={x:0,y:0};                 // gust dalgalanması
 // tahmin
 let gpsAcik=true;
-let ogrWind={x:0,y:0};              // GPS'ten öğrenilen rüzgar (z-fit basitleştirilmiş)
+let ogrWind={x:0,y:0};              // GPS'ten öğrenilen rüzgar (son ~10s gerçek ortalaması)
+let ruzgarGecmis=[];               // son N rüzgar örneği (kayan pencere fit)
+let simHiz=0.5;                    // sim hız çarpanı (0.5× = rahat)
 let tahmin={x:0,y:0};              // kesinti sırasında tahmini konum
 let kesBasla=null, kesSure=0, hata=0;
 // kamera (serbest pan+zoom, İHA'ya kilitli DEĞİL)
@@ -108,17 +113,21 @@ document.getElementById('kes').onclick=gpsKes;
 document.getElementById('ruz').onclick=()=>{ wind={x:(Math.random()*8-4), y:(Math.random()*8-4)}; };
 document.getElementById('mrk').onclick=(e)=>{ ortala=!ortala; e.target.classList.toggle('on',ortala); };
 document.getElementById('sifir').onclick=()=>{ pos={x:0,y:0}; iz=[]; izT=[]; if(!gpsAcik)gpsKes(); };
+function hizAyar(h){ simHiz=h; ['h05','h1','h2'].forEach(id=>document.getElementById(id).style.background=''); }
+document.getElementById('h05').onclick=e=>{hizAyar(0.5);e.target.style.background='#1D3350';};
+document.getElementById('h1').onclick=e=>{hizAyar(1);e.target.style.background='#1D3350';};
+document.getElementById('h2').onclick=e=>{hizAyar(2);e.target.style.background='#1D3350';};
 
 // fizik adımı
 function adim(){
   // kontrol
   if(tus['ArrowUp']) ias=Math.min(30,ias+0.3);
   if(tus['ArrowDown']) ias=Math.max(6,ias-0.3);
-  if(tus['ArrowLeft']) hdg-=0.06;
-  if(tus['ArrowRight']) hdg+=0.06;
-  // gust rastgele yürüyüş (türbülans)
-  gust.x+=(Math.random()-0.5)*0.4; gust.y+=(Math.random()-0.5)*0.4;
-  gust.x*=0.9; gust.y*=0.9;
+  if(tus['ArrowLeft']) hdg-=0.035;
+  if(tus['ArrowRight']) hdg+=0.035;
+  // gust rastgele yürüyüş (hafif türbülans — düz uçuşta çok az sapma)
+  gust.x+=(Math.random()-0.5)*0.15; gust.y+=(Math.random()-0.5)*0.15;
+  gust.x*=0.92; gust.y*=0.92;
   const wx=wind.x+gust.x, wy=wind.y+gust.y;
   // hava hız vektörü (başlık yönünde)
   const ax=ias*Math.sin(hdg), ay=ias*Math.cos(hdg);
@@ -128,9 +137,11 @@ function adim(){
   iz.push({x:pos.x,y:pos.y}); if(iz.length>4000)iz.shift();
 
   if(gpsAcik){
-    // GPS varken rüzgarı ÖĞREN: rüzgar = yer_hız − hava_hız (yumuşatılmış = z-fit'in özü)
-    const ox=gx-ax, oy=gy-ay;
-    ogrWind.x+=(ox-ogrWind.x)*0.05; ogrWind.y+=(oy-ogrWind.y)*0.05;  // kayan ortalama
+    // GPS varken rüzgarı ÖĞREN: son ~14s (28 örnek) GERÇEK ortalaması → geç kalmaz,
+    // kesme anında doğru → tahmin sürekli (sıçramasız) başlar. (production z-fit'in özü)
+    ruzgarGecmis.push({x:gx-ax, y:gy-ay}); if(ruzgarGecmis.length>28) ruzgarGecmis.shift();
+    ogrWind.x=ruzgarGecmis.reduce((s,r)=>s+r.x,0)/ruzgarGecmis.length;
+    ogrWind.y=ruzgarGecmis.reduce((s,r)=>s+r.y,0)/ruzgarGecmis.length;
   } else {
     // KESİNTİ: hava_hız + DONMUŞ öğrenilen rüzgar ile dead-reckon (production fizik-fallback)
     const px=ax+ogrWind.x, py=ay+ogrWind.y;
@@ -197,8 +208,8 @@ function ciz(){
 
 let birikim=0,son=performance.now();
 function dongu(now){
-  birikim+=(now-son)/1000*2;  // 2Hz sim
-  while(birikim>=1){ adim(); birikim-=1; }
+  birikim+=(now-son)/1000*2*simHiz;  // 2Hz sim × hız çarpanı
+  let n=0; while(birikim>=1 && n<10){ adim(); birikim-=1; n++; }
   son=now; ciz(); requestAnimationFrame(dongu);
 }
 
