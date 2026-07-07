@@ -79,7 +79,9 @@
   <div id="not">Beyaz iz = gerçek rota (GPS). <b>Yeşil = PRODUCTION füzyon = gerçek çıktı</b>
   (uçuş boyunca ~12–24m). Camgöbeği/amber/mor = ham tek-model BİLEŞENLERİ — yabancı pistte
   tek başına yüzlerce m sapabilir; <b>füzyon bu yüzden var</b>: her kesintide en güvenilir
-  bileşeni seçer. Kesinti bitince yeşil iz GPS dönüşüyle geriye kapanır (RETRO ~6m).</div>
+  bileşeni seçer. Kesinti bitince yeşil iz GPS dönüşüyle geriye kapanır (RETRO ~6m).
+  <b>Yeşil elips = konum belirsizliği</b> (v93 conformal, %68/%95 istatistiksel-garantili) —
+  pencereye göre akıllıca büyür: dar=güvenli, geniş=riskli.</div>
 </div>
 <script>
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -291,6 +293,17 @@ function ciz(){
     const {o,rel}=aktif;
     // HİZALAMA: model[i] = kesinti-başı+1+i konumu → gerçek ti ile eşleşen indeks = rel-1
     const mi = Math.max(0, Math.min(rel-1, o.v66.length-1));
+    // v93 CONFORMAL belirsizlik elipsi — production tahmini çevresinde, zamanla büyür
+    if(o.r68){
+      const pm=(o.v71||o.v66)[mi]; const q=proj(pm);
+      if(q){ const buyu=Math.sqrt((rel)/o.v66.length);       // ~diffusion büyüme
+        const sc=Math.min(W,H)/(2.6*yaricap)*zoom;           // metre→piksel
+        [[o.r95,'rgba(70,201,141,.10)','rgba(70,201,141,.35)'],
+         [o.r68,'rgba(70,201,141,.18)','rgba(70,201,141,.65)']].forEach(([r,dolgu,ciz])=>{
+          ctx.beginPath(); ctx.arc(q[0],q[1],Math.max(2,r*buyu*sc),0,7);
+          ctx.fillStyle=dolgu; ctx.fill(); ctx.strokeStyle=ciz; ctx.lineWidth=1; ctx.stroke(); });
+      }
+    }
     MODELS.forEach(([k,renk])=>{
       iz3(o[k], mi+1, renk, 2.2, .95);
       const pm=o[k][mi];
