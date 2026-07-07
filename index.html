@@ -63,6 +63,7 @@
     <button class="btn spd" data-s="10">10×</button>
     <button class="btn spd" id="tekrar" title="Baştan">⟲</button>
     <button class="btn spd" id="sabit" title="Sabit görüş (oto-dönüşü durdur)">🔒 Sabit</button>
+    <button class="btn spd" id="takip" title="İHA kamerası — gerçek uçağın gözünden takip">🎥 İHA Kamerası</button>
   </div>
 </header>
 <main id="sahne"><canvas id="cv"></canvas><div id="ipucu">sürükle: döndür · tekerlek: yakınlaş · 🔒 Sabit: oto-dönüşü kilitle</div></main>
@@ -90,7 +91,8 @@ let ucusKey = null;
 let t = 0, playing = true, speed = 4, acc = 0, last = performance.now();
 let W=0,H=0,DPR=1;
 let az = -0.7, el = 0.55, zoom = 1;      // kamera
-let merkez=[0,0,0], yaricap=1, ALT_K=2.2; // irtifa abartma (görünürlük)
+let merkez=[0,0,0], merkezT=[0,0,0], yaricap=1, ALT_K=2.2; // irtifa abartma (görünürlük)
+let takipKam=false;
 
 function boyutla(){
   DPR = window.devicePixelRatio||1;
@@ -113,7 +115,8 @@ let taban=0, sinir=null;
 
 function proj(p){
   // dünya: n(kuzey), e(doğu), alt → kamera-döndürülmüş ortografik
-  const x0 = p[1]-merkez[1], y0 = p[0]-merkez[0], z0 = (p[2]-merkez[2])*ALT_K;
+  const M = takipKam ? merkezT : merkez;
+  const x0 = p[1]-M[1], y0 = p[0]-M[0], z0 = (p[2]-M[2])*ALT_K;
   const ca=Math.cos(az), sa=Math.sin(az);
   const x1 = x0*ca - y0*sa, y1 = x0*sa + y0*ca;
   const ce=Math.cos(el), se=Math.sin(el);
@@ -210,9 +213,17 @@ function ihaCiz(p, onceki, renk){
 
 function ciz(){
   const u = VERI[ucusKey];
+  const T=u.true.length, ti=Math.min(Math.floor(t), T-1);
+  // İHA KAMERASI: merkez uçağa biner, azimut gidiş yönüne kilitlenir
+  if(takipKam){
+    const g=u.true[ti];
+    merkezT=[g[0],g[1],g[2]];
+    const pv = ti>0 ? u.true[ti-1] : (u.true[ti+1]||g);
+    const dn=g[0]-pv[0], de=g[1]-pv[1];
+    if(Math.hypot(dn,de)>1e-3) az = -Math.atan2(de,dn) - Math.PI/2;  // burun yukarı
+  }
   ctx.fillStyle=C('--bg'); ctx.fillRect(0,0,W,H);
   zemin();
-  const T=u.true.length, ti=Math.min(Math.floor(t), T-1);
   for(const o of u.outages){
     const Lo=o.v66.length, bit=o.s+Lo;
     if(bit <= ti){
@@ -269,7 +280,7 @@ function dongu(now){
     if(acc>=1){ t += Math.floor(acc); acc -= Math.floor(acc); }
     const T=VERI[ucusKey].true.length;
     if(t>=T){ t=T-1; playing=false; belirtele(); }
-    if(!surukleme && !sabitGorus) az += 0.0006*speed;   // hafif oto-yörünge (sabit-görüşte kapalı)
+    if(!surukleme && !sabitGorus && !takipKam) az += 0.0006*speed;   // oto-yörünge (sabit/takip'te kapalı)
   }
   last=now; ciz(); requestAnimationFrame(dongu);
 }
@@ -279,6 +290,11 @@ document.getElementById('play').onclick=()=>{ playing=!playing; if(playing&&t>=V
 document.getElementById('tekrar').onclick=()=>{ t=0; playing=true; belirtele(); };
 let sabitGorus=false;
 document.getElementById('sabit').onclick=(e)=>{ sabitGorus=!sabitGorus; e.target.classList.toggle('on',sabitGorus); };
+document.getElementById('takip').onclick=(e)=>{
+  takipKam=!takipKam; e.target.classList.toggle('on',takipKam);
+  if(takipKam){ el=0.18; zoom=3.2; }      // alçak açı + yakın = pilot görüşü
+  else { el=0.55; zoom=1; }
+};
 document.querySelectorAll('.btn.spd[data-s]').forEach(b=>b.onclick=()=>{
   speed=+b.dataset.s;
   document.querySelectorAll('.btn.spd[data-s]').forEach(x=>x.classList.toggle('on',x===b));
