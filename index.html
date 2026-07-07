@@ -91,8 +91,8 @@ let ucusKey = null;
 let t = 0, playing = true, speed = 4, acc = 0, last = performance.now();
 let W=0,H=0,DPR=1;
 let az = -0.7, el = 0.55, zoom = 1;      // kamera
-let merkez=[0,0,0], merkezT=[0,0,0], yaricap=1, ALT_K=2.2; // irtifa abartma (görünürlük)
-let takipKam=false;
+let merkez=[0,0,0], yaricap=1, ALT_K=2.2; // irtifa abartma (görünürlük)
+let fpv=false;
 
 function boyutla(){
   DPR = window.devicePixelRatio||1;
@@ -115,8 +115,8 @@ let taban=0, sinir=null;
 
 function proj(p){
   // dünya: n(kuzey), e(doğu), alt → kamera-döndürülmüş ortografik
-  const M = takipKam ? merkezT : merkez;
-  const x0 = p[1]-M[1], y0 = p[0]-M[0], z0 = (p[2]-M[2])*ALT_K;
+  if(fpv) return projFPV(p);           // İHA gözünden perspektif
+  const x0 = p[1]-merkez[1], y0 = p[0]-merkez[0], z0 = (p[2]-merkez[2])*ALT_K;
   const ca=Math.cos(az), sa=Math.sin(az);
   const x1 = x0*ca - y0*sa, y1 = x0*sa + y0*ca;
   const ce=Math.cos(el), se=Math.sin(el);
@@ -124,7 +124,45 @@ function proj(p){
   const sc = Math.min(W,H)/(2.6*yaricap)*zoom;
   return [W/2 + x1*sc, H/2 + y2*sc];
 }
+// === İHA GÖZÜNDEN GERÇEK PERSPEKTİF (FPV) ===
+let camEye=[0,0,0], camR=[1,0,0], camU=[0,1,0], camF=[0,0,1];
+const ZK=3.0;   // FPV irtifa abartma (dikey görünürlük)
+function fpvKurulum(u, ti){
+  const g=u.true[ti];
+  const pv = ti>0 ? u.true[ti-1] : (u.true[ti+1]||g);
+  // ileri yön (n,e,alt·ZK) — hız vektörü
+  let f=[g[0]-pv[0], g[1]-pv[1], (g[2]-pv[2])*ZK];
+  let fn=Math.hypot(f[0],f[1],f[2]); if(fn<1e-4){ f=[1,0,0]; fn=1; }
+  camF=[f[0]/fn,f[1]/fn,f[2]/fn];
+  // sağ = ileri × dünyaÜst
+  const up=[0,0,1];
+  let r=[camF[1]*up[2]-camF[2]*up[1], camF[2]*up[0]-camF[0]*up[2], camF[0]*up[1]-camF[1]*up[0]];
+  let rn=Math.hypot(r[0],r[1],r[2])||1; camR=[r[0]/rn,r[1]/rn,r[2]/rn];
+  // kamera üst = sağ × ileri
+  camU=[camR[1]*camF[2]-camR[2]*camF[1], camR[2]*camF[0]-camR[0]*camF[2], camR[0]*camF[1]-camR[1]*camF[0]];
+  // göz: uçağın hafif arkası+üstü (kokpit hissi, kendi İHA görünür)
+  camEye=[g[0]-camF[0]*7 + camU[0]*2.5, g[1]-camF[1]*7 + camU[1]*2.5, (g[2])*ZK - camF[2]*7 + camU[2]*2.5];
+}
+function projFPV(p){
+  const rel=[p[0]-camEye[0], p[1]-camEye[1], p[2]*ZK-camEye[2]];
+  const cz=rel[0]*camF[0]+rel[1]*camF[1]+rel[2]*camF[2];   // derinlik
+  if(cz<0.6) return null;                                   // kamera arkası → çizme
+  const cx=rel[0]*camR[0]+rel[1]*camR[1]+rel[2]*camR[2];
+  const cy=rel[0]*camU[0]+rel[1]*camU[1]+rel[2]*camU[2];
+  const foc=Math.min(W,H)*0.9*zoom;
+  return [W/2 + foc*cx/cz, H/2 - foc*cy/cz];
+}
 
+function ufuk(){                          // FPV: gökyüzü üst, zemin alt (ufuk çizgisi)
+  if(!fpv) return;
+  // ufuk = kameranın önündeki yatay düzlem izi; camF eğimine göre y konumu
+  const pitch = Math.asin(Math.max(-1,Math.min(1,camF[2])));  // yukarı/aşağı bakış
+  const yh = H/2 + pitch*H*0.9;
+  let sky=ctx.createLinearGradient(0,0,0,yh); sky.addColorStop(0,'#0C1A30'); sky.addColorStop(1,'#12325A');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,Math.max(0,yh));
+  ctx.fillStyle='#0A1220'; ctx.fillRect(0,Math.max(0,yh),W,H);
+  ctx.strokeStyle='#24406A'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(0,yh); ctx.lineTo(W,yh); ctx.stroke();
+}
 function zemin(){
   if(!sinir) return;
   const {mn,mx} = sinir;
@@ -135,12 +173,10 @@ function zemin(){
   const n0=Math.floor(mn[0]/adim)*adim, n1=Math.ceil(mx[0]/adim)*adim;
   ctx.beginPath();
   for(let e=e0;e<=e1;e+=adim){
-    let p=proj([n0,e,taban]); ctx.moveTo(p[0],p[1]);
-    p=proj([n1,e,taban]); ctx.lineTo(p[0],p[1]);
+    let a=proj([n0,e,taban]), b=proj([n1,e,taban]); if(a&&b){ ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); }
   }
   for(let n=n0;n<=n1;n+=adim){
-    let p=proj([n,e0,taban]); ctx.moveTo(p[0],p[1]);
-    p=proj([n,e1,taban]); ctx.lineTo(p[0],p[1]);
+    let a=proj([n,e0,taban]), b=proj([n,e1,taban]); if(a&&b){ ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); }
   }
   ctx.stroke();
   // 3-EKSEN TRİADI (Kuzey / Doğu / Yükseklik) — köşede orijinden
@@ -149,10 +185,9 @@ function zemin(){
              [[n0,e0+adim,taban],'D','#FF9F45'],   // Doğu (Y)
              [[n0,e0,taban+adim*0.6],'Yük','#46C98D']]; // Yükseklik (Z)
   ctx.font='bold 12px '+CSS.getPropertyValue('--mono'); ctx.lineWidth=2;
-  eks.forEach(([p,ad,renk])=>{
-    const q=proj(p);
+  if(oq) eks.forEach(([p,ad,renk])=>{
+    const q=proj(p); if(!q) return;
     ctx.strokeStyle=renk; ctx.beginPath(); ctx.moveTo(oq[0],oq[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
-    // ok ucu
     ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],3,0,7); ctx.fill();
     ctx.fillText(ad, q[0]+5, q[1]-2);
   });
@@ -164,37 +199,39 @@ function zemin(){
 function iz3(path, n, renk, kalin, alfa){
   if(n<2) return;
   ctx.globalAlpha=alfa; ctx.strokeStyle=renk; ctx.lineWidth=kalin; ctx.lineJoin='round';
-  ctx.beginPath();
-  let p=proj(path[0]); ctx.moveTo(p[0],p[1]);
-  for(let i=1;i<n;i++){ p=proj(path[i]); ctx.lineTo(p[0],p[1]); }
+  ctx.beginPath(); let kalem=false;
+  for(let i=0;i<n;i++){ const p=proj(path[i]);
+    if(!p){ kalem=false; continue; }
+    if(!kalem){ ctx.moveTo(p[0],p[1]); kalem=true; } else ctx.lineTo(p[0],p[1]); }
   ctx.stroke(); ctx.globalAlpha=1;
 }
 function golge(path, n, alfa){ // zemine iz düşümü
   ctx.globalAlpha=alfa; ctx.strokeStyle='#22314F'; ctx.lineWidth=1;
-  ctx.beginPath();
-  let p=proj([path[0][0],path[0][1],taban]); ctx.moveTo(p[0],p[1]);
-  for(let i=1;i<n;i++){ p=proj([path[i][0],path[i][1],taban]); ctx.lineTo(p[0],p[1]); }
+  ctx.beginPath(); let kalem=false;
+  for(let i=0;i<n;i++){ const p=proj([path[i][0],path[i][1],taban]);
+    if(!p){ kalem=false; continue; }
+    if(!kalem){ ctx.moveTo(p[0],p[1]); kalem=true; } else ctx.lineTo(p[0],p[1]); }
   ctx.stroke(); ctx.globalAlpha=1;
 }
 function nokta3(p, renk, r, dikey){
-  const q=proj(p);
+  const q=proj(p); if(!q) return;
   if(dikey){
     const qz=proj([p[0],p[1],taban]);
-    ctx.strokeStyle=renk; ctx.globalAlpha=.35; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1;
+    if(qz){ ctx.strokeStyle=renk; ctx.globalAlpha=.35; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1; }
   }
   ctx.fillStyle=renk; ctx.beginPath(); ctx.arc(q[0],q[1],r,0,7); ctx.fill();
 }
 // İHA/drone üstten-görünüm silüeti — hareket yönüne döner (kuzey→doğu izdüşümü)
 function ihaCiz(p, onceki, renk){
-  const q=proj(p);
+  const q=proj(p); if(!q) return;
   // yön: dünya hız vektörünü ekrana yansıt (2 ucu projekte et)
   let ang=0;
-  if(onceki){ const a=proj(onceki); ang=Math.atan2(q[1]-a[1], q[0]-a[0]); }
+  if(onceki){ const a=proj(onceki); if(a) ang=Math.atan2(q[1]-a[1], q[0]-a[0]); }
   // dikey yükseklik çizgisi
   const qz=proj([p[0],p[1],taban]);
-  ctx.strokeStyle=renk; ctx.globalAlpha=.30; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1;
+  if(qz){ ctx.strokeStyle=renk; ctx.globalAlpha=.30; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(q[0],q[1]); ctx.lineTo(qz[0],qz[1]); ctx.stroke(); ctx.globalAlpha=1; }
   ctx.save(); ctx.translate(q[0],q[1]); ctx.rotate(ang);
   const s=9;                                   // İHA ölçeği
   ctx.fillStyle=renk; ctx.strokeStyle='#0A101C'; ctx.lineWidth=1;
@@ -214,15 +251,9 @@ function ihaCiz(p, onceki, renk){
 function ciz(){
   const u = VERI[ucusKey];
   const T=u.true.length, ti=Math.min(Math.floor(t), T-1);
-  // İHA KAMERASI: merkez uçağa biner, azimut gidiş yönüne kilitlenir
-  if(takipKam){
-    const g=u.true[ti];
-    merkezT=[g[0],g[1],g[2]];
-    const pv = ti>0 ? u.true[ti-1] : (u.true[ti+1]||g);
-    const dn=g[0]-pv[0], de=g[1]-pv[1];
-    if(Math.hypot(dn,de)>1e-3) az = -Math.atan2(de,dn) - Math.PI/2;  // burun yukarı
-  }
+  if(fpv) fpvKurulum(u, ti);           // İHA gözünden perspektif kamera
   ctx.fillStyle=C('--bg'); ctx.fillRect(0,0,W,H);
+  ufuk();                              // FPV'de gökyüzü/zemin ufku
   zemin();
   for(const o of u.outages){
     const Lo=o.v66.length, bit=o.s+Lo;
@@ -280,7 +311,7 @@ function dongu(now){
     if(acc>=1){ t += Math.floor(acc); acc -= Math.floor(acc); }
     const T=VERI[ucusKey].true.length;
     if(t>=T){ t=T-1; playing=false; belirtele(); }
-    if(!surukleme && !sabitGorus && !takipKam) az += 0.0006*speed;   // oto-yörünge (sabit/takip'te kapalı)
+    if(!surukleme && !sabitGorus && !fpv) az += 0.0006*speed;   // oto-yörünge (sabit/FPV'de kapalı)
   }
   last=now; ciz(); requestAnimationFrame(dongu);
 }
@@ -291,9 +322,11 @@ document.getElementById('tekrar').onclick=()=>{ t=0; playing=true; belirtele(); 
 let sabitGorus=false;
 document.getElementById('sabit').onclick=(e)=>{ sabitGorus=!sabitGorus; e.target.classList.toggle('on',sabitGorus); };
 document.getElementById('takip').onclick=(e)=>{
-  takipKam=!takipKam; e.target.classList.toggle('on',takipKam);
-  if(takipKam){ el=0.18; zoom=3.2; }      // alçak açı + yakın = pilot görüşü
-  else { el=0.55; zoom=1; }
+  fpv=!fpv; e.target.classList.toggle('on',fpv);
+  zoom=1;                                  // FPV kendi odak uzaklığını kullanır
+  document.getElementById('ipucu').textContent = fpv
+    ? '🎥 İHA gözünden uçuş · tekerlek: görüş açısı · Sabit ile çık'
+    : 'sürükle: döndür · tekerlek: yakınlaş · 🔒 Sabit: oto-dönüşü kilitle';
 };
 document.querySelectorAll('.btn.spd[data-s]').forEach(b=>b.onclick=()=>{
   speed=+b.dataset.s;
